@@ -23,6 +23,13 @@ interface PatientData {
   symptoms: string;
   history: string;
   examinationFindings: string;
+  drugAllergies: string;
+  foodAllergies: string;
+  environmentalAllergies: string;
+  currentMedications: string;
+  recentlyStoppedMedications: string;
+  currentTreatments: string;
+  pastTreatments: string;
 }
 
 serve(async (req) => {
@@ -51,37 +58,78 @@ CLINICAL EXAMINATION PROTOCOL:
 6. Patient safety verification including drug interactions and contraindications
 7. Appropriate specialist referral and follow-up planning
 
+CRITICAL SAFETY INSTRUCTIONS:
+- Always check allergies, current medications, and ongoing treatments before recommending any drugs
+- Avoid contraindicated medications based on patient's allergy profile
+- Consider drug-drug interactions with current medications
+- Account for ongoing treatments that may affect recommendations
+
 Instructions:
 - Analyze the patient data including examination findings provided by the examining physician
 - Provide a structured diagnostic assessment following evidence-based clinical guidelines
 - Consider patient-specific factors (age, nationality, physical attributes, examination findings)
-- Ensure all recommendations align with current standard of care for your specialization`;
+- Ensure all recommendations align with current standard of care for your specialization
+
+Respond ONLY in the following EXACT structure with no additional text, no percentages, no markdown, no headings beyond these labels:
+
+PRIMARY DIAGNOSIS:
+INVESTIGATIVE TESTS:
+MEDICATION:
+FURTHER PROCEDURES:`;
+
+    const allergiesSection = [
+      patient.drugAllergies && `Drug Allergies: ${patient.drugAllergies}`,
+      patient.foodAllergies && `Food Allergies: ${patient.foodAllergies}`,
+      patient.environmentalAllergies && `Environmental Allergies: ${patient.environmentalAllergies}`,
+    ].filter(Boolean).join("\n") || "No known allergies reported";
+
+    const medicationsSection = [
+      patient.currentMedications && `Current Medications: ${patient.currentMedications}`,
+      patient.recentlyStoppedMedications && `Recently Stopped: ${patient.recentlyStoppedMedications}`,
+    ].filter(Boolean).join("\n") || "No current medications reported";
+
+    const treatmentsSection = [
+      patient.currentTreatments && `Current Treatments: ${patient.currentTreatments}`,
+      patient.pastTreatments && `Past Treatments/Surgeries: ${patient.pastTreatments}`,
+    ].filter(Boolean).join("\n") || "No ongoing treatments reported";
 
     const userPrompt = `Analyze the following patient:
+
+DEMOGRAPHICS:
 Age: ${patient.age}, Gender: ${patient.gender}, Nationality: ${patient.nationality || "Not specified"}
 Weight: ${patient.weight}kg, Height: ${patient.height}cm
 Physical Attributes: ${patient.physicalAttributes || "Not specified"}
+
+VITALS:
 Blood Pressure: ${patient.bp}, O2 Saturation: ${patient.o2}%
+
+ALLERGIES & SENSITIVITIES:
+${allergiesSection}
+
+CURRENT & RECENT MEDICATIONS:
+${medicationsSection}
+
+ONGOING / PAST TREATMENTS:
+${treatmentsSection}
 
 PRIMARY EXAMINATION FINDINGS (Performed by Physician):
 ${patient.examinationFindings}
 
-Symptoms: ${patient.symptoms}
-Medical History: ${patient.history}
+SYMPTOMS:
+${patient.symptoms}
 
-Provide your response in EXACTLY this format:
+MEDICAL HISTORY:
+${patient.history}
+
+Provide your response in EXACTLY this format with no additional text:
 
 PRIMARY DIAGNOSIS:
-[Your primary diagnosis with confidence level and differential diagnoses]
 
 INVESTIGATIVE TESTS:
-[List of recommended tests with rationale for each]
 
 MEDICATION:
-[Detailed medication plan including drug names, dosages, frequency, and duration]
 
-FURTHER PROCEDURES:
-[Follow-up procedures, specialist referrals, lifestyle recommendations]`;
+FURTHER PROCEDURES:`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -107,6 +155,13 @@ FURTHER PROCEDURES:
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required. Please add credits to continue." }), {
+          status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
