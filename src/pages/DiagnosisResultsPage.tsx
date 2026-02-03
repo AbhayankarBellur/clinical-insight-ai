@@ -51,6 +51,8 @@ export default function DiagnosisResultsPage() {
 
         <DiagnosisResults
           result={diagnosis}
+          doctor={doctor}
+          patient={patient}
           onNewPatient={handleNewPatient}
           onReconfigure={handleReconfigure}
         />

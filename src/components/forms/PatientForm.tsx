@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PatientData } from "@/types/medical";
-import { ArrowLeft, Stethoscope } from "lucide-react";
+import { ArrowLeft, Stethoscope, AlertTriangle, Pill, Activity } from "lucide-react";
 
 const schema = z.object({
   age: z.number().min(0).max(120),
@@ -27,6 +27,16 @@ const schema = z.object({
   symptoms: z.string().min(20, "Minimum 20 characters").max(1000),
   history: z.string().min(20, "Minimum 20 characters").max(1500),
   examinationFindings: z.string().min(50, "Minimum 50 characters").max(2000),
+  // Allergies
+  drugAllergies: z.string().max(800).optional(),
+  foodAllergies: z.string().max(800).optional(),
+  environmentalAllergies: z.string().max(500).optional(),
+  // Medications
+  currentMedications: z.string().max(800).optional(),
+  recentlyStoppedMedications: z.string().max(800).optional(),
+  // Treatments
+  currentTreatments: z.string().max(800).optional(),
+  pastTreatments: z.string().max(800).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -58,6 +68,13 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
       symptoms: "",
       history: "",
       examinationFindings: "",
+      drugAllergies: "",
+      foodAllergies: "",
+      environmentalAllergies: "",
+      currentMedications: "",
+      recentlyStoppedMedications: "",
+      currentTreatments: "",
+      pastTreatments: "",
     },
     mode: "onChange",
   });
@@ -79,6 +96,13 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
       symptoms: data.symptoms,
       history: data.history,
       examinationFindings: data.examinationFindings,
+      drugAllergies: data.drugAllergies || "",
+      foodAllergies: data.foodAllergies || "",
+      environmentalAllergies: data.environmentalAllergies || "",
+      currentMedications: data.currentMedications || "",
+      recentlyStoppedMedications: data.recentlyStoppedMedications || "",
+      currentTreatments: data.currentTreatments || "",
+      pastTreatments: data.pastTreatments || "",
     });
   };
 
@@ -222,6 +246,103 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
         </div>
       </div>
 
+      {/* Allergies, Medications & Treatments Card */}
+      <div className="clinical-card p-6 border-l-4 border-l-warning">
+        <div className="flex items-center gap-2 mb-4">
+          <AlertTriangle className="w-5 h-5 text-warning" />
+          <h3 className="section-header mb-0">Allergies, Medications & Treatments</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Critical safety information for contraindication checking
+        </p>
+
+        {/* Allergies Section */}
+        <div className="space-y-4 mb-6">
+          <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            Allergies & Sensitivities
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="drugAllergies">Drug Allergies</Label>
+              <Textarea
+                {...register("drugAllergies")}
+                placeholder="List known drug allergies and reactions"
+                className="clinical-input min-h-[80px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="foodAllergies">Food Allergies</Label>
+              <Textarea
+                {...register("foodAllergies")}
+                placeholder="List known food allergies"
+                className="clinical-input min-h-[80px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="environmentalAllergies">Environmental Allergies</Label>
+              <Textarea
+                {...register("environmentalAllergies")}
+                placeholder="Pollen, dust, latex, etc."
+                className="clinical-input min-h-[80px]"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Medications Section */}
+        <div className="space-y-4 mb-6">
+          <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Pill className="w-4 h-4" />
+            Current & Recent Medications
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentMedications">Current Medications</Label>
+              <Textarea
+                {...register("currentMedications")}
+                placeholder="List all current medications with dosages"
+                className="clinical-input min-h-[100px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="recentlyStoppedMedications">Recently Stopped Medications</Label>
+              <Textarea
+                {...register("recentlyStoppedMedications")}
+                placeholder="Medications stopped within last 3 months"
+                className="clinical-input min-h-[100px]"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Treatments Section */}
+        <div className="space-y-4">
+          <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            Ongoing / Past Treatments
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentTreatments">Current Treatments</Label>
+              <Textarea
+                {...register("currentTreatments")}
+                placeholder="Ongoing therapies, dialysis, chemotherapy, etc."
+                className="clinical-input min-h-[100px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pastTreatments">Past Treatments / Surgeries</Label>
+              <Textarea
+                {...register("pastTreatments")}
+                placeholder="Previous surgeries, procedures, therapies"
+                className="clinical-input min-h-[100px]"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Clinical Examination Card */}
       <div className="clinical-card p-6 border-l-4 border-l-primary">
         <div className="flex items-center gap-2 mb-4">
@@ -271,7 +392,7 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
             </Label>
             <Textarea
               {...register("history")}
-              placeholder="Past medical history, surgical history, current medications, allergies, family history"
+              placeholder="Past medical history, surgical history, family history, social history"
               className="clinical-input min-h-[100px]"
             />
             {errors.history && (
@@ -288,9 +409,7 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
         </Button>
         <Button type="submit" disabled={!isValid || isLoading} size="lg">
           {isLoading ? (
-            <>
-              <span className="animate-pulse">Processing Clinical Data...</span>
-            </>
+            <span className="animate-pulse">Processing Clinical Data...</span>
           ) : (
             "Diagnose"
           )}

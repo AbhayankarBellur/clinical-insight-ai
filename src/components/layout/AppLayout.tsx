@@ -10,8 +10,8 @@ interface AppLayoutProps {
 export function AppLayout({ children, currentStep }: AppLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
+      {/* Header - Hidden during print */}
+      <header className="border-b border-border bg-card app-header no-print">
         <div className="container py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -32,8 +32,8 @@ export function AppLayout({ children, currentStep }: AppLayoutProps) {
         {children}
       </main>
 
-      {/* Footer with disclaimer */}
-      <footer className="border-t border-border bg-card mt-auto">
+      {/* Footer with disclaimer - Hidden during print (disclaimer shown in results) */}
+      <footer className="border-t border-border bg-card mt-auto app-footer no-print">
         <div className="container py-4">
           <MedicalDisclaimer />
         </div>
