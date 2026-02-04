@@ -12,42 +12,99 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PatientData } from "@/types/medical";
-import { ArrowLeft, Stethoscope, AlertTriangle, Pill, Activity } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PatientData, DiagnosisMode } from "@/types/medical";
+import { DiagnosisModeSelector } from "./DiagnosisModeSelector";
+import { ArrowLeft, Stethoscope, AlertTriangle, Pill, Activity, ChevronDown, Microscope } from "lucide-react";
+import { useState } from "react";
 
-const schema = z.object({
-  age: z.number().min(0).max(120),
-  gender: z.string().min(1, "Gender is required"),
-  nationality: z.string().max(100).optional(),
-  weight: z.number().min(0).max(500),
-  height: z.number().min(0).max(300),
-  physicalAttributes: z.string().max(500).optional(),
-  bp: z.string().regex(/^\d{2,3}\/\d{2,3}$/, "Format: systolic/diastolic (e.g., 120/80)"),
-  o2: z.number().min(0).max(100),
-  symptoms: z.string().min(20, "Minimum 20 characters").max(1000),
-  history: z.string().min(20, "Minimum 20 characters").max(1500),
-  examinationFindings: z.string().min(50, "Minimum 50 characters").max(2000),
-  // Allergies
-  drugAllergies: z.string().max(800).optional(),
-  foodAllergies: z.string().max(800).optional(),
-  environmentalAllergies: z.string().max(500).optional(),
-  // Medications
-  currentMedications: z.string().max(800).optional(),
-  recentlyStoppedMedications: z.string().max(800).optional(),
-  // Treatments
-  currentTreatments: z.string().max(800).optional(),
-  pastTreatments: z.string().max(800).optional(),
-});
+// Dynamic schema based on mode
+const createSchema = (mode: DiagnosisMode) => {
+  const baseSchema = {
+    age: z.number().min(0).max(120),
+    gender: z.string().min(1, "Gender is required"),
+    weight: z.number().min(0).max(500),
+    bp: z.string().regex(/^\d{2,3}\/\d{2,3}$/, "Format: systolic/diastolic (e.g., 120/80)"),
+    o2: z.number().min(0).max(100),
+    symptoms: mode === "pre" 
+      ? z.string().min(10, "Minimum 10 characters").max(500)
+      : z.string().min(20, "Minimum 20 characters").max(1000),
+    examinationFindings: mode === "pre"
+      ? z.string().min(20, "Minimum 20 characters").max(1000)
+      : z.string().min(50, "Minimum 50 characters").max(2000),
+  };
 
-type FormData = z.infer<typeof schema>;
+  if (mode === "pre") {
+    return z.object({
+      ...baseSchema,
+      nationality: z.string().max(100).optional(),
+      height: z.number().min(0).max(300).optional(),
+      physicalAttributes: z.string().max(500).optional(),
+      history: z.string().max(1500).optional(),
+      drugAllergies: z.string().max(800).optional(),
+      foodAllergies: z.string().max(800).optional(),
+      environmentalAllergies: z.string().max(500).optional(),
+      currentMedications: z.string().max(800).optional(),
+      recentlyStoppedMedications: z.string().max(800).optional(),
+      currentTreatments: z.string().max(800).optional(),
+      pastTreatments: z.string().max(800).optional(),
+      // Research fields
+      familyMedicalHistory: z.string().max(2000).optional(),
+      geneticConditions: z.string().max(1000).optional(),
+      epidemiologicalExposure: z.string().max(1000).optional(),
+      travelHistory: z.string().max(1000).optional(),
+      occupationalExposure: z.string().max(1000).optional(),
+      immunizationHistory: z.string().max(1000).optional(),
+      previousLabResults: z.string().max(3000).optional(),
+      imagingFindings: z.string().max(2000).optional(),
+      specialistOpinions: z.string().max(2000).optional(),
+      researchNotes: z.string().max(5000).optional(),
+    });
+  }
+
+  // Detailed and Research modes
+  return z.object({
+    ...baseSchema,
+    nationality: z.string().max(100).optional(),
+    height: z.number().min(0).max(300),
+    physicalAttributes: z.string().max(500).optional(),
+    history: z.string().min(20, "Minimum 20 characters").max(1500),
+    drugAllergies: z.string().max(800).optional(),
+    foodAllergies: z.string().max(800).optional(),
+    environmentalAllergies: z.string().max(500).optional(),
+    currentMedications: z.string().max(800).optional(),
+    recentlyStoppedMedications: z.string().max(800).optional(),
+    currentTreatments: z.string().max(800).optional(),
+    pastTreatments: z.string().max(800).optional(),
+    // Research fields
+    familyMedicalHistory: z.string().max(2000).optional(),
+    geneticConditions: z.string().max(1000).optional(),
+    epidemiologicalExposure: z.string().max(1000).optional(),
+    travelHistory: z.string().max(1000).optional(),
+    occupationalExposure: z.string().max(1000).optional(),
+    immunizationHistory: z.string().max(1000).optional(),
+    previousLabResults: z.string().max(3000).optional(),
+    imagingFindings: z.string().max(2000).optional(),
+    specialistOpinions: z.string().max(2000).optional(),
+    researchNotes: z.string().max(5000).optional(),
+  });
+};
+
+type FormData = z.infer<ReturnType<typeof createSchema>>;
 
 interface PatientFormProps {
-  onSubmit: (data: PatientData) => void;
+  onSubmit: (data: PatientData, mode: DiagnosisMode) => void;
   onBack: () => void;
   isLoading: boolean;
+  initialMode?: DiagnosisMode;
 }
 
-export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
+export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detailed" }: PatientFormProps) {
+  const [mode, setMode] = useState<DiagnosisMode>(initialMode);
+  const [researchOpen, setResearchOpen] = useState(false);
+  
+  const schema = createSchema(mode);
+  
   const {
     register,
     handleSubmit,
@@ -75,6 +132,16 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
       recentlyStoppedMedications: "",
       currentTreatments: "",
       pastTreatments: "",
+      familyMedicalHistory: "",
+      geneticConditions: "",
+      epidemiologicalExposure: "",
+      travelHistory: "",
+      occupationalExposure: "",
+      immunizationHistory: "",
+      previousLabResults: "",
+      imagingFindings: "",
+      specialistOpinions: "",
+      researchNotes: "",
     },
     mode: "onChange",
   });
@@ -89,12 +156,12 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
       gender: data.gender,
       nationality: data.nationality || "",
       weight: data.weight,
-      height: data.height,
+      height: data.height || 0,
       physicalAttributes: data.physicalAttributes || "",
       bp: data.bp,
       o2: data.o2,
       symptoms: data.symptoms,
-      history: data.history,
+      history: data.history || "",
       examinationFindings: data.examinationFindings,
       drugAllergies: data.drugAllergies || "",
       foodAllergies: data.foodAllergies || "",
@@ -103,11 +170,27 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
       recentlyStoppedMedications: data.recentlyStoppedMedications || "",
       currentTreatments: data.currentTreatments || "",
       pastTreatments: data.pastTreatments || "",
-    });
+      familyMedicalHistory: data.familyMedicalHistory || "",
+      geneticConditions: data.geneticConditions || "",
+      epidemiologicalExposure: data.epidemiologicalExposure || "",
+      travelHistory: data.travelHistory || "",
+      occupationalExposure: data.occupationalExposure || "",
+      immunizationHistory: data.immunizationHistory || "",
+      previousLabResults: data.previousLabResults || "",
+      imagingFindings: data.imagingFindings || "",
+      specialistOpinions: data.specialistOpinions || "",
+      researchNotes: data.researchNotes || "",
+    }, mode);
   };
+
+  const showDetailedFields = mode !== "pre";
+  const showResearchFields = mode === "research";
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      {/* Diagnosis Mode Selector */}
+      <DiagnosisModeSelector value={mode} onChange={setMode} />
+
       {/* Demographics Card */}
       <div className="clinical-card p-6">
         <h3 className="section-header">Demographics</h3>
@@ -149,14 +232,16 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="nationality">Nationality</Label>
-            <Input
-              {...register("nationality")}
-              placeholder="Optional"
-              className="clinical-input"
-            />
-          </div>
+          {showDetailedFields && (
+            <div className="space-y-2">
+              <Label htmlFor="nationality">Nationality</Label>
+              <Input
+                {...register("nationality")}
+                placeholder="Optional"
+                className="clinical-input"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -180,30 +265,34 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="height">
-              Height (cm) <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              {...register("height", { valueAsNumber: true })}
-              type="number"
-              step="0.1"
-              placeholder="0-300"
-              className="clinical-input"
-            />
-            {errors.height && (
-              <p className="text-sm text-destructive">{errors.height.message}</p>
-            )}
-          </div>
+          {showDetailedFields && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="height">
+                  Height (cm) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  {...register("height", { valueAsNumber: true })}
+                  type="number"
+                  step="0.1"
+                  placeholder="0-300"
+                  className="clinical-input"
+                />
+                {errors.height && (
+                  <p className="text-sm text-destructive">{errors.height.message}</p>
+                )}
+              </div>
 
-          <div className="space-y-2">
-            <Label>BMI (calculated)</Label>
-            <Input
-              value={bmi ? `${bmi} kg/m²` : "—"}
-              readOnly
-              className="clinical-input bg-muted"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label>BMI (calculated)</Label>
+                <Input
+                  value={bmi ? `${bmi} kg/m²` : "—"}
+                  readOnly
+                  className="clinical-input bg-muted"
+                />
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="bp">
@@ -235,26 +324,32 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
             )}
           </div>
 
-          <div className="space-y-2 md:col-span-3">
-            <Label htmlFor="physicalAttributes">Physical Attributes</Label>
-            <Textarea
-              {...register("physicalAttributes")}
-              placeholder="Notable physical characteristics, body type (optional)"
-              className="clinical-input min-h-[80px]"
-            />
-          </div>
+          {showDetailedFields && (
+            <div className="space-y-2 md:col-span-3">
+              <Label htmlFor="physicalAttributes">Physical Attributes</Label>
+              <Textarea
+                {...register("physicalAttributes")}
+                placeholder="Notable physical characteristics, body type (optional)"
+                className="clinical-input min-h-[80px]"
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Allergies, Medications & Treatments Card */}
+      {/* Allergies & Medications - Collapsed in Pre mode */}
       <div className="clinical-card p-6 border-l-4 border-l-warning">
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="w-5 h-5 text-warning" />
-          <h3 className="section-header mb-0">Allergies, Medications & Treatments</h3>
+          <h3 className="section-header mb-0">
+            {mode === "pre" ? "Safety Info (Optional)" : "Allergies, Medications & Treatments"}
+          </h3>
         </div>
-        <p className="text-sm text-muted-foreground mb-4">
-          Critical safety information for contraindication checking
-        </p>
+        {showDetailedFields && (
+          <p className="text-sm text-muted-foreground mb-4">
+            Critical safety information for contraindication checking
+          </p>
+        )}
 
         {/* Allergies Section */}
         <div className="space-y-4 mb-6">
@@ -262,7 +357,7 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
             <AlertTriangle className="w-4 h-4" />
             Allergies & Sensitivities
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className={`grid grid-cols-1 ${showDetailedFields ? "md:grid-cols-3" : ""} gap-4`}>
             <div className="space-y-2">
               <Label htmlFor="drugAllergies">Drug Allergies</Label>
               <Textarea
@@ -271,22 +366,26 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
                 className="clinical-input min-h-[80px]"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="foodAllergies">Food Allergies</Label>
-              <Textarea
-                {...register("foodAllergies")}
-                placeholder="List known food allergies"
-                className="clinical-input min-h-[80px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="environmentalAllergies">Environmental Allergies</Label>
-              <Textarea
-                {...register("environmentalAllergies")}
-                placeholder="Pollen, dust, latex, etc."
-                className="clinical-input min-h-[80px]"
-              />
-            </div>
+            {showDetailedFields && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="foodAllergies">Food Allergies</Label>
+                  <Textarea
+                    {...register("foodAllergies")}
+                    placeholder="List known food allergies"
+                    className="clinical-input min-h-[80px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="environmentalAllergies">Environmental Allergies</Label>
+                  <Textarea
+                    {...register("environmentalAllergies")}
+                    placeholder="Pollen, dust, latex, etc."
+                    className="clinical-input min-h-[80px]"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -296,7 +395,7 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
             <Pill className="w-4 h-4" />
             Current & Recent Medications
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 ${showDetailedFields ? "md:grid-cols-2" : ""} gap-4`}>
             <div className="space-y-2">
               <Label htmlFor="currentMedications">Current Medications</Label>
               <Textarea
@@ -305,42 +404,46 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
                 className="clinical-input min-h-[100px]"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="recentlyStoppedMedications">Recently Stopped Medications</Label>
-              <Textarea
-                {...register("recentlyStoppedMedications")}
-                placeholder="Medications stopped within last 3 months"
-                className="clinical-input min-h-[100px]"
-              />
-            </div>
+            {showDetailedFields && (
+              <div className="space-y-2">
+                <Label htmlFor="recentlyStoppedMedications">Recently Stopped Medications</Label>
+                <Textarea
+                  {...register("recentlyStoppedMedications")}
+                  placeholder="Medications stopped within last 3 months"
+                  className="clinical-input min-h-[100px]"
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Treatments Section */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Activity className="w-4 h-4" />
-            Ongoing / Past Treatments
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentTreatments">Current Treatments</Label>
-              <Textarea
-                {...register("currentTreatments")}
-                placeholder="Ongoing therapies, dialysis, chemotherapy, etc."
-                className="clinical-input min-h-[100px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pastTreatments">Past Treatments / Surgeries</Label>
-              <Textarea
-                {...register("pastTreatments")}
-                placeholder="Previous surgeries, procedures, therapies"
-                className="clinical-input min-h-[100px]"
-              />
+        {/* Treatments Section - Only in detailed/research */}
+        {showDetailedFields && (
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              Ongoing / Past Treatments
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="currentTreatments">Current Treatments</Label>
+                <Textarea
+                  {...register("currentTreatments")}
+                  placeholder="Ongoing therapies, dialysis, chemotherapy, etc."
+                  className="clinical-input min-h-[100px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pastTreatments">Past Treatments / Surgeries</Label>
+                <Textarea
+                  {...register("pastTreatments")}
+                  placeholder="Previous surgeries, procedures, therapies"
+                  className="clinical-input min-h-[100px]"
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Clinical Examination Card */}
@@ -359,12 +462,14 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
           <Textarea
             {...register("examinationFindings")}
             placeholder="General appearance, cardiovascular examination, respiratory examination, abdominal examination, neurological examination, musculoskeletal findings, skin examination..."
-            className="clinical-input min-h-[150px]"
+            className={`clinical-input ${mode === "pre" ? "min-h-[100px]" : "min-h-[150px]"}`}
           />
           {errors.examinationFindings && (
             <p className="text-sm text-destructive">{errors.examinationFindings.message}</p>
           )}
-          <p className="text-xs text-muted-foreground">Minimum 50 characters</p>
+          <p className="text-xs text-muted-foreground">
+            Minimum {mode === "pre" ? "20" : "50"} characters
+          </p>
         </div>
       </div>
 
@@ -386,21 +491,129 @@ export function PatientForm({ onSubmit, onBack, isLoading }: PatientFormProps) {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="history">
-              Medical History <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              {...register("history")}
-              placeholder="Past medical history, surgical history, family history, social history"
-              className="clinical-input min-h-[100px]"
-            />
-            {errors.history && (
-              <p className="text-sm text-destructive">{errors.history.message}</p>
-            )}
-          </div>
+          {showDetailedFields && (
+            <div className="space-y-2">
+              <Label htmlFor="history">
+                Medical History <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                {...register("history")}
+                placeholder="Past medical history, surgical history, family history, social history"
+                className="clinical-input min-h-[100px]"
+              />
+              {errors.history && (
+                <p className="text-sm text-destructive">{errors.history.message}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Research Context Section - Only in Research mode */}
+      {showResearchFields && (
+        <Collapsible open={researchOpen} onOpenChange={setResearchOpen}>
+          <div className="clinical-card p-6 border-l-4 border-l-accent">
+            <CollapsibleTrigger className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <Microscope className="w-5 h-5 text-accent-foreground" />
+                <h3 className="section-header mb-0">Research Context</h3>
+              </div>
+              <ChevronDown className={`w-5 h-5 transition-transform ${researchOpen ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <p className="text-sm text-muted-foreground mt-2 mb-4">
+              Extended context for academic/complex case analysis
+            </p>
+
+            <CollapsibleContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="familyMedicalHistory">Family Medical History</Label>
+                  <Textarea
+                    {...register("familyMedicalHistory")}
+                    placeholder="Hereditary conditions, family disease patterns..."
+                    className="clinical-input min-h-[100px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="geneticConditions">Genetic Conditions Known</Label>
+                  <Textarea
+                    {...register("geneticConditions")}
+                    placeholder="Known genetic disorders, test results..."
+                    className="clinical-input min-h-[100px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="epidemiologicalExposure">Epidemiological Exposure</Label>
+                  <Textarea
+                    {...register("epidemiologicalExposure")}
+                    placeholder="Disease outbreaks, endemic areas, contacts..."
+                    className="clinical-input min-h-[100px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="travelHistory">Travel History</Label>
+                  <Textarea
+                    {...register("travelHistory")}
+                    placeholder="Recent travel, endemic regions visited..."
+                    className="clinical-input min-h-[100px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="occupationalExposure">Occupational / Environmental Exposure</Label>
+                  <Textarea
+                    {...register("occupationalExposure")}
+                    placeholder="Work hazards, chemical exposure, pollution..."
+                    className="clinical-input min-h-[100px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="immunizationHistory">Immunization History</Label>
+                  <Textarea
+                    {...register("immunizationHistory")}
+                    placeholder="Vaccination records, recent immunizations..."
+                    className="clinical-input min-h-[100px]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-border">
+                <div className="space-y-2">
+                  <Label htmlFor="previousLabResults">Previous Lab Results</Label>
+                  <Textarea
+                    {...register("previousLabResults")}
+                    placeholder="Recent laboratory findings, trends, abnormalities..."
+                    className="clinical-input min-h-[120px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="imagingFindings">Imaging Findings</Label>
+                  <Textarea
+                    {...register("imagingFindings")}
+                    placeholder="X-ray, CT, MRI, ultrasound reports..."
+                    className="clinical-input min-h-[120px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="specialistOpinions">Specialist Opinions</Label>
+                  <Textarea
+                    {...register("specialistOpinions")}
+                    placeholder="Previous specialist consultations, opinions..."
+                    className="clinical-input min-h-[120px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="researchNotes">Free Research Notes</Label>
+                  <Textarea
+                    {...register("researchNotes")}
+                    placeholder="Additional observations, hypotheses, literature references..."
+                    className="clinical-input min-h-[150px]"
+                  />
+                </div>
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      )}
 
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={onBack} disabled={isLoading}>

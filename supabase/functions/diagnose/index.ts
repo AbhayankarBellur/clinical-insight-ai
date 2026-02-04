@@ -30,7 +30,62 @@ interface PatientData {
   recentlyStoppedMedications: string;
   currentTreatments: string;
   pastTreatments: string;
+  // Research fields
+  familyMedicalHistory?: string;
+  geneticConditions?: string;
+  epidemiologicalExposure?: string;
+  travelHistory?: string;
+  occupationalExposure?: string;
+  immunizationHistory?: string;
+  previousLabResults?: string;
+  imagingFindings?: string;
+  specialistOpinions?: string;
+  researchNotes?: string;
 }
+
+type DiagnosisMode = "pre" | "detailed" | "research";
+
+// Mode-specific prompt modifiers
+const getModeModifier = (mode: DiagnosisMode): string => {
+  switch (mode) {
+    case "pre":
+      return `
+QUICK TRIAGE MODE:
+- Provide concise differential diagnosis
+- Limit to top 3 conditions with probability percentages
+- Focus on immediate safety and direction
+- Avoid verbose rationale
+- Prioritize red flags and urgent conditions`;
+    
+    case "research":
+      return `
+DIAGNOSTIC RESEARCH MODE:
+- Provide extended differential diagnosis including rare conditions
+- Correlate epidemiological and genetic factors
+- Expand investigative and pathophysiological reasoning
+- Include uncommon but plausible conditions
+- Consider academic/specialist-level analysis`;
+    
+    default:
+      return `
+DETAILED DIAGNOSIS MODE:
+- Provide comprehensive differential diagnosis with probability percentages
+- Expand investigation rationale
+- Consider contraindications and comorbidities
+- Balance thoroughness with clinical practicality`;
+  }
+};
+
+// Prune empty fields to reduce tokens
+const pruneEmptyFields = (obj: Record<string, unknown>): Record<string, unknown> => {
+  const pruned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== null && value !== undefined && value !== "" && value !== 0) {
+      pruned[key] = value;
+    }
+  }
+  return pruned;
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -38,12 +93,18 @@ serve(async (req) => {
   }
 
   try {
-    const { doctor, patient } = await req.json() as { doctor: DoctorConfig; patient: PatientData };
+    const { doctor, patient, mode = "detailed" } = await req.json() as { 
+      doctor: DoctorConfig; 
+      patient: PatientData;
+      mode?: DiagnosisMode;
+    };
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("Lovable API key not configured");
     }
+
+    const modeModifier = getModeModifier(mode);
 
     const systemPrompt = `You are a ${doctor.designation} with ${doctor.degree} specializing in ${doctor.specialization}. 
 
@@ -63,42 +124,71 @@ CRITICAL SAFETY INSTRUCTIONS:
 - Avoid contraindicated medications based on patient's allergy profile
 - Consider drug-drug interactions with current medications
 - Account for ongoing treatments that may affect recommendations
+${modeModifier}
 
 Instructions:
 - Analyze the patient data including examination findings provided by the examining physician
 - Provide a structured diagnostic assessment following evidence-based clinical guidelines
 - Consider patient-specific factors (age, nationality, physical attributes, examination findings)
 - Ensure all recommendations align with current standard of care for your specialization
+- For PRIMARY DIAGNOSIS: Provide a ranked differential diagnosis with probability percentages (e.g., "Condition A (65%)")
 
-Respond ONLY in the following EXACT structure with no additional text, no percentages, no markdown, no headings beyond these labels:
+Respond ONLY in the following EXACT structure with no additional text, no markdown headers beyond these labels:
 
 PRIMARY DIAGNOSIS:
+
 INVESTIGATIVE TESTS:
+
 MEDICATION:
+
 FURTHER PROCEDURES:`;
 
+    // Build context sections with pruning
+    const prunedPatient = pruneEmptyFields(patient as unknown as Record<string, unknown>);
+
     const allergiesSection = [
-      patient.drugAllergies && `Drug Allergies: ${patient.drugAllergies}`,
-      patient.foodAllergies && `Food Allergies: ${patient.foodAllergies}`,
-      patient.environmentalAllergies && `Environmental Allergies: ${patient.environmentalAllergies}`,
+      prunedPatient.drugAllergies && `Drug Allergies: ${prunedPatient.drugAllergies}`,
+      prunedPatient.foodAllergies && `Food Allergies: ${prunedPatient.foodAllergies}`,
+      prunedPatient.environmentalAllergies && `Environmental Allergies: ${prunedPatient.environmentalAllergies}`,
     ].filter(Boolean).join("\n") || "No known allergies reported";
 
     const medicationsSection = [
-      patient.currentMedications && `Current Medications: ${patient.currentMedications}`,
-      patient.recentlyStoppedMedications && `Recently Stopped: ${patient.recentlyStoppedMedications}`,
+      prunedPatient.currentMedications && `Current Medications: ${prunedPatient.currentMedications}`,
+      prunedPatient.recentlyStoppedMedications && `Recently Stopped: ${prunedPatient.recentlyStoppedMedications}`,
     ].filter(Boolean).join("\n") || "No current medications reported";
 
     const treatmentsSection = [
-      patient.currentTreatments && `Current Treatments: ${patient.currentTreatments}`,
-      patient.pastTreatments && `Past Treatments/Surgeries: ${patient.pastTreatments}`,
+      prunedPatient.currentTreatments && `Current Treatments: ${prunedPatient.currentTreatments}`,
+      prunedPatient.pastTreatments && `Past Treatments/Surgeries: ${prunedPatient.pastTreatments}`,
     ].filter(Boolean).join("\n") || "No ongoing treatments reported";
+
+    // Research context (only in research mode)
+    let researchSection = "";
+    if (mode === "research") {
+      const researchFields = [
+        prunedPatient.familyMedicalHistory && `Family Medical History: ${prunedPatient.familyMedicalHistory}`,
+        prunedPatient.geneticConditions && `Genetic Conditions: ${prunedPatient.geneticConditions}`,
+        prunedPatient.epidemiologicalExposure && `Epidemiological Exposure: ${prunedPatient.epidemiologicalExposure}`,
+        prunedPatient.travelHistory && `Travel History: ${prunedPatient.travelHistory}`,
+        prunedPatient.occupationalExposure && `Occupational/Environmental Exposure: ${prunedPatient.occupationalExposure}`,
+        prunedPatient.immunizationHistory && `Immunization History: ${prunedPatient.immunizationHistory}`,
+        prunedPatient.previousLabResults && `Previous Lab Results: ${prunedPatient.previousLabResults}`,
+        prunedPatient.imagingFindings && `Imaging Findings: ${prunedPatient.imagingFindings}`,
+        prunedPatient.specialistOpinions && `Specialist Opinions: ${prunedPatient.specialistOpinions}`,
+        prunedPatient.researchNotes && `Research Notes: ${prunedPatient.researchNotes}`,
+      ].filter(Boolean);
+
+      if (researchFields.length > 0) {
+        researchSection = `\nRESEARCH CONTEXT:\n${researchFields.join("\n")}`;
+      }
+    }
 
     const userPrompt = `Analyze the following patient:
 
 DEMOGRAPHICS:
-Age: ${patient.age}, Gender: ${patient.gender}, Nationality: ${patient.nationality || "Not specified"}
-Weight: ${patient.weight}kg, Height: ${patient.height}cm
-Physical Attributes: ${patient.physicalAttributes || "Not specified"}
+Age: ${patient.age}, Gender: ${patient.gender}${patient.nationality ? `, Nationality: ${patient.nationality}` : ""}
+Weight: ${patient.weight}kg${patient.height ? `, Height: ${patient.height}cm` : ""}
+${patient.physicalAttributes ? `Physical Attributes: ${patient.physicalAttributes}` : ""}
 
 VITALS:
 Blood Pressure: ${patient.bp}, O2 Saturation: ${patient.o2}%
@@ -118,8 +208,8 @@ ${patient.examinationFindings}
 SYMPTOMS:
 ${patient.symptoms}
 
-MEDICAL HISTORY:
-${patient.history}
+${patient.history ? `MEDICAL HISTORY:\n${patient.history}` : ""}
+${researchSection}
 
 Provide your response in EXACTLY this format with no additional text:
 
@@ -144,7 +234,7 @@ FURTHER PROCEDURES:`;
           { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
-        max_tokens: 3000,
+        max_tokens: mode === "research" ? 4000 : mode === "pre" ? 1500 : 3000,
       }),
     });
 
@@ -179,7 +269,7 @@ FURTHER PROCEDURES:`;
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
 
-    return new Response(JSON.stringify({ diagnosis: content }), {
+    return new Response(JSON.stringify({ diagnosis: content, mode }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

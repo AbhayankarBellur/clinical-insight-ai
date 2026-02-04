@@ -2,10 +2,21 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DiagnosisResults } from "@/components/results/DiagnosisResults";
 import { useDiagnosis } from "@/context/DiagnosisContext";
+import { SectionKey } from "@/types/medical";
 
 export default function DiagnosisResultsPage() {
   const navigate = useNavigate();
-  const { diagnosis, doctor, patient, resetPatient, resetAll } = useDiagnosis();
+  const { 
+    diagnosis, 
+    diagnosisState,
+    doctor, 
+    patient, 
+    resetPatient, 
+    resetAll,
+    updateSectionOutput,
+    updateSectionReasoning,
+    setSectionLoading,
+  } = useDiagnosis();
 
   // Redirect if no diagnosis available
   if (!diagnosis || !doctor || !patient) {
@@ -21,6 +32,18 @@ export default function DiagnosisResultsPage() {
   const handleReconfigure = () => {
     resetAll();
     navigate("/");
+  };
+
+  const handleUpdateSection = (section: SectionKey, output: string) => {
+    updateSectionOutput(section, output);
+  };
+
+  const handleUpdateReasoning = (section: SectionKey, reasoning: string | null) => {
+    updateSectionReasoning(section, reasoning);
+  };
+
+  const handleSetLoading = (section: SectionKey, type: "reasoning" | "edit", loading: boolean) => {
+    setSectionLoading(section, type, loading);
   };
 
   return (
@@ -51,10 +74,14 @@ export default function DiagnosisResultsPage() {
 
         <DiagnosisResults
           result={diagnosis}
+          diagnosisState={diagnosisState}
           doctor={doctor}
           patient={patient}
           onNewPatient={handleNewPatient}
           onReconfigure={handleReconfigure}
+          onUpdateSection={handleUpdateSection}
+          onUpdateReasoning={handleUpdateReasoning}
+          onSetLoading={handleSetLoading}
         />
       </div>
     </AppLayout>
