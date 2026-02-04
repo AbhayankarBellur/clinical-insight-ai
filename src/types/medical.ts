@@ -1,3 +1,5 @@
+export type DiagnosisMode = "pre" | "detailed" | "research";
+
 export interface DoctorConfig {
   designation: string;
   customDesignation?: string;
@@ -29,6 +31,26 @@ export interface PatientData {
   // Ongoing / Past Treatments
   currentTreatments: string;
   pastTreatments: string;
+  // Research Mode Fields (optional)
+  familyMedicalHistory?: string;
+  geneticConditions?: string;
+  epidemiologicalExposure?: string;
+  travelHistory?: string;
+  occupationalExposure?: string;
+  immunizationHistory?: string;
+  previousLabResults?: string;
+  imagingFindings?: string;
+  specialistOpinions?: string;
+  researchNotes?: string;
+}
+
+export type SectionKey = "primaryDiagnosis" | "investigativeTests" | "medication" | "furtherProcedures";
+
+export interface SectionState {
+  output: string;
+  reasoning: string | null;
+  isLoadingReasoning: boolean;
+  isLoadingEdit: boolean;
 }
 
 export interface DiagnosisResult {
@@ -37,4 +59,10 @@ export interface DiagnosisResult {
   medication: string;
   furtherProcedures: string;
   rawResponse: string;
+}
+
+export interface DiagnosisState {
+  result: DiagnosisResult;
+  sections: Record<SectionKey, SectionState>;
+  mode: DiagnosisMode;
 }

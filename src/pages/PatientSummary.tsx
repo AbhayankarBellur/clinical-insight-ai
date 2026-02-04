@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PatientForm } from "@/components/forms/PatientForm";
 import { useDiagnosis } from "@/context/DiagnosisContext";
-import { PatientData } from "@/types/medical";
+import { PatientData, DiagnosisMode } from "@/types/medical";
 import { parseDiagnosis } from "@/lib/parseDiagnosis";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export default function PatientSummary() {
   const navigate = useNavigate();
-  const { doctor, setPatient, setDiagnosis } = useDiagnosis();
+  const { doctor, setPatient, setDiagnosisResult, diagnosisMode } = useDiagnosis();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -20,13 +20,13 @@ export default function PatientSummary() {
     return null;
   }
 
-  const handleSubmit = async (data: PatientData) => {
+  const handleSubmit = async (data: PatientData, mode: DiagnosisMode) => {
     setIsLoading(true);
     setPatient(data);
 
     try {
       const { data: response, error } = await supabase.functions.invoke("diagnose", {
-        body: { doctor, patient: data },
+        body: { doctor, patient: data, mode },
       });
 
       if (error) {
@@ -38,7 +38,7 @@ export default function PatientSummary() {
       }
 
       const parsedResult = parseDiagnosis(response.diagnosis);
-      setDiagnosis(parsedResult);
+      setDiagnosisResult(parsedResult, mode);
       navigate("/results");
     } catch (error) {
       console.error("Diagnosis error:", error);
@@ -78,6 +78,7 @@ export default function PatientSummary() {
           onSubmit={handleSubmit}
           onBack={handleBack}
           isLoading={isLoading}
+          initialMode={diagnosisMode}
         />
       </div>
 
