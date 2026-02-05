@@ -48,16 +48,18 @@ export type SectionKey = "primaryDiagnosis" | "investigativeTests" | "medication
 
 export interface SectionState {
   output: string;
-  reasoning: string | null;
-  isLoadingReasoning: boolean;
-  isLoadingEdit: boolean;
+  reasoning: string;
 }
 
 export interface DiagnosisResult {
   primaryDiagnosis: string;
+  primaryDiagnosisReasoning: string;
   investigativeTests: string;
+  investigativeTestsReasoning: string;
   medication: string;
+  medicationReasoning: string;
   furtherProcedures: string;
+  furtherProceduresReasoning: string;
   rawResponse: string;
 }
 

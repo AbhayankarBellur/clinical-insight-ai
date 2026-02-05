@@ -1,18 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Check, Activity, FlaskConical, Pill, ClipboardList, FileText, Brain, Edit3, Loader2, Send } from "lucide-react";
-import { SectionKey, SectionState } from "@/types/medical";
+import { Copy, Check, Activity, FlaskConical, Pill, ClipboardList, FileText, Brain } from "lucide-react";
+import { SectionState } from "@/types/medical";
 
 interface ResultCardProps {
   title: string;
   content: string;
   variant: "diagnosis" | "tests" | "medication" | "procedures" | "raw";
-  sectionKey?: SectionKey;
   sectionState?: SectionState;
-  onRequestReasoning?: () => void;
-  onSubmitEdit?: (instruction: string) => void;
 }
 
 const variantConfig = {
@@ -42,18 +38,14 @@ export function ResultCard({
   title, 
   content, 
   variant, 
-  sectionKey,
   sectionState,
-  onRequestReasoning,
-  onSubmitEdit,
 }: ResultCardProps) {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("output");
-  const [editInstruction, setEditInstruction] = useState("");
   
   const config = variantConfig[variant];
   const Icon = config.icon;
-  const hasInteractiveFeatures = variant !== "raw" && sectionKey && sectionState;
+  const hasInteractiveFeatures = variant !== "raw" && sectionState;
 
   const handleCopy = async () => {
     const textToCopy = activeTab === "reasoning" && sectionState?.reasoning 
@@ -63,20 +55,6 @@ export function ResultCard({
     await navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleReasoningClick = () => {
-    if (!sectionState?.reasoning && onRequestReasoning) {
-      onRequestReasoning();
-    }
-  };
-
-  const handleEditSubmit = () => {
-    if (editInstruction.trim() && onSubmitEdit) {
-      onSubmitEdit(editInstruction.trim());
-      setEditInstruction("");
-      setActiveTab("output");
-    }
   };
 
   const formatContent = (text: string) => {
@@ -121,7 +99,7 @@ export function ResultCard({
     );
   }
 
-  // Interactive card with tabs
+  // Interactive card with Output and Reasoning tabs only
   return (
     <div className="result-card">
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
@@ -143,30 +121,14 @@ export function ResultCard({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4 no-print">
+        <TabsList className="grid w-full grid-cols-2 mb-4 no-print">
           <TabsTrigger value="output" className="text-xs">
             <FileText className="w-3 h-3 mr-1" />
             Output
           </TabsTrigger>
-          <TabsTrigger 
-            value="reasoning" 
-            className="text-xs"
-            onClick={handleReasoningClick}
-          >
-            {sectionState?.isLoadingReasoning ? (
-              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            ) : (
-              <Brain className="w-3 h-3 mr-1" />
-            )}
+          <TabsTrigger value="reasoning" className="text-xs">
+            <Brain className="w-3 h-3 mr-1" />
             Reasoning
-          </TabsTrigger>
-          <TabsTrigger value="edit" className="text-xs">
-            {sectionState?.isLoadingEdit ? (
-              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            ) : (
-              <Edit3 className="w-3 h-3 mr-1" />
-            )}
-            Edit
           </TabsTrigger>
         </TabsList>
 
@@ -182,52 +144,13 @@ export function ResultCard({
 
         <TabsContent value="reasoning" className="mt-0">
           <div className="text-foreground leading-relaxed">
-            {sectionState?.isLoadingReasoning ? (
-              <div className="flex items-center gap-2 text-muted-foreground py-4">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Generating reasoning...</span>
-              </div>
-            ) : sectionState?.reasoning ? (
+            {sectionState?.reasoning ? (
               <div className="prose prose-sm max-w-none">{formatContent(sectionState.reasoning)}</div>
             ) : (
               <p className="text-muted-foreground italic">
-                Click to generate clinical reasoning for this section.
+                No reasoning provided for this section.
               </p>
             )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="edit" className="mt-0">
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Provide instructions to refine this section. The AI will regenerate only this section based on your guidance.
-            </p>
-            <Textarea
-              value={editInstruction}
-              onChange={(e) => setEditInstruction(e.target.value)}
-              placeholder="e.g., 'Add more specific dosages', 'Consider alternative medications for elderly patients', 'Include less invasive test options first'..."
-              className="clinical-input min-h-[100px]"
-              disabled={sectionState?.isLoadingEdit}
-            />
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleEditSubmit}
-                disabled={!editInstruction.trim() || sectionState?.isLoadingEdit}
-                size="sm"
-              >
-                {sectionState?.isLoadingEdit ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Regenerate Section
-                  </>
-                )}
-              </Button>
-            </div>
           </div>
         </TabsContent>
       </Tabs>
