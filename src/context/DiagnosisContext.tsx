@@ -8,9 +8,6 @@ interface DiagnosisContextType {
   setPatient: (patient: PatientData) => void;
   diagnosisState: DiagnosisState | null;
   setDiagnosisResult: (result: DiagnosisResult, mode: DiagnosisMode) => void;
-  updateSectionOutput: (section: SectionKey, output: string) => void;
-  updateSectionReasoning: (section: SectionKey, reasoning: string | null) => void;
-  setSectionLoading: (section: SectionKey, type: "reasoning" | "edit", loading: boolean) => void;
   diagnosisMode: DiagnosisMode;
   setDiagnosisMode: (mode: DiagnosisMode) => void;
   resetPatient: () => void;
@@ -22,11 +19,9 @@ interface DiagnosisContextType {
 
 const DiagnosisContext = createContext<DiagnosisContextType | undefined>(undefined);
 
-const createInitialSectionState = (output: string): SectionState => ({
+const createSectionState = (output: string, reasoning: string): SectionState => ({
   output,
-  reasoning: null,
-  isLoadingReasoning: false,
-  isLoadingEdit: false,
+  reasoning,
 });
 
 export function DiagnosisProvider({ children }: { children: ReactNode }) {
@@ -40,53 +35,10 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       result,
       mode,
       sections: {
-        primaryDiagnosis: createInitialSectionState(result.primaryDiagnosis),
-        investigativeTests: createInitialSectionState(result.investigativeTests),
-        medication: createInitialSectionState(result.medication),
-        furtherProcedures: createInitialSectionState(result.furtherProcedures),
-      },
-    });
-  };
-
-  const updateSectionOutput = (section: SectionKey, output: string) => {
-    if (!diagnosisState) return;
-    setDiagnosisState({
-      ...diagnosisState,
-      sections: {
-        ...diagnosisState.sections,
-        [section]: {
-          ...diagnosisState.sections[section],
-          output,
-          reasoning: null, // Clear reasoning when output changes
-        },
-      },
-    });
-  };
-
-  const updateSectionReasoning = (section: SectionKey, reasoning: string | null) => {
-    if (!diagnosisState) return;
-    setDiagnosisState({
-      ...diagnosisState,
-      sections: {
-        ...diagnosisState.sections,
-        [section]: {
-          ...diagnosisState.sections[section],
-          reasoning,
-        },
-      },
-    });
-  };
-
-  const setSectionLoading = (section: SectionKey, type: "reasoning" | "edit", loading: boolean) => {
-    if (!diagnosisState) return;
-    setDiagnosisState({
-      ...diagnosisState,
-      sections: {
-        ...diagnosisState.sections,
-        [section]: {
-          ...diagnosisState.sections[section],
-          [type === "reasoning" ? "isLoadingReasoning" : "isLoadingEdit"]: loading,
-        },
+        primaryDiagnosis: createSectionState(result.primaryDiagnosis, result.primaryDiagnosisReasoning),
+        investigativeTests: createSectionState(result.investigativeTests, result.investigativeTestsReasoning),
+        medication: createSectionState(result.medication, result.medicationReasoning),
+        furtherProcedures: createSectionState(result.furtherProcedures, result.furtherProceduresReasoning),
       },
     });
   };
@@ -118,9 +70,6 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
         setPatient,
         diagnosisState,
         setDiagnosisResult,
-        updateSectionOutput,
-        updateSectionReasoning,
-        setSectionLoading,
         diagnosisMode,
         setDiagnosisMode,
         resetPatient,

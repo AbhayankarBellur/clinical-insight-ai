@@ -126,22 +126,39 @@ CRITICAL SAFETY INSTRUCTIONS:
 - Account for ongoing treatments that may affect recommendations
 ${modeModifier}
 
+MEDICATION INSTRUCTIONS (CRITICAL):
+- Always specify generic drug composition and dosage
+- Provide commonly available Indian market brand names where applicable
+- Do not output vague terms like "antibiotic" or "painkiller"
+- Avoid unavailable or region-specific brands outside India
+- Format: Generic Name (Dosage) - Indian Brand Names
+
 Instructions:
 - Analyze the patient data including examination findings provided by the examining physician
 - Provide a structured diagnostic assessment following evidence-based clinical guidelines
 - Consider patient-specific factors (age, nationality, physical attributes, examination findings)
 - Ensure all recommendations align with current standard of care for your specialization
 - For PRIMARY DIAGNOSIS: Provide a ranked differential diagnosis with probability percentages (e.g., "Condition A (65%)")
+- For each section, provide both the clinical Output AND the Reasoning behind it
 
-Respond ONLY in the following EXACT structure with no additional text, no markdown headers beyond these labels:
+RESPONSE FORMAT (STRICTLY FOLLOW):
+Respond ONLY in this EXACT structure. Each section MUST have Output: and Reasoning: subfields.
 
 PRIMARY DIAGNOSIS:
+Output: [Your ranked differential diagnosis with probability percentages]
+Reasoning: [Clinical reasoning explaining why these diagnoses are considered]
 
 INVESTIGATIVE TESTS:
+Output: [Recommended tests in order of priority]
+Reasoning: [Why each test is needed and what it will confirm/rule out]
 
 MEDICATION:
+Output: [Generic name (dosage) - Indian brand names, with frequency and duration]
+Reasoning: [Why these medications are chosen, mechanism of action, contraindication checks]
 
-FURTHER PROCEDURES:`;
+FURTHER PROCEDURES:
+Output: [Next steps, referrals, follow-up schedule]
+Reasoning: [Why these procedures are recommended based on differential diagnosis]`;
 
     // Build context sections with pruning
     const prunedPatient = pruneEmptyFields(patient as unknown as Record<string, unknown>);
@@ -211,15 +228,23 @@ ${patient.symptoms}
 ${patient.history ? `MEDICAL HISTORY:\n${patient.history}` : ""}
 ${researchSection}
 
-Provide your response in EXACTLY this format with no additional text:
+Provide your response in EXACTLY this format with Output: and Reasoning: for each section:
 
 PRIMARY DIAGNOSIS:
+Output: [ranked differential with probabilities]
+Reasoning: [clinical reasoning]
 
 INVESTIGATIVE TESTS:
+Output: [tests]
+Reasoning: [rationale]
 
 MEDICATION:
+Output: [generic (dose) - Indian brands]
+Reasoning: [drug selection rationale]
 
-FURTHER PROCEDURES:`;
+FURTHER PROCEDURES:
+Output: [procedures and follow-up]
+Reasoning: [procedure rationale]`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -234,7 +259,7 @@ FURTHER PROCEDURES:`;
           { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
-        max_tokens: mode === "research" ? 4000 : mode === "pre" ? 1500 : 3000,
+        max_tokens: mode === "research" ? 5000 : mode === "pre" ? 2000 : 4000,
       }),
     });
 

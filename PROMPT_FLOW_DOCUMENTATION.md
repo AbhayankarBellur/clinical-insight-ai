@@ -21,11 +21,13 @@ This document details the complete data flow from patient input → AI prompt �
 └─────────────────┘     └──────────────────┘     └─────────────────┘
         │
         ▼
-┌─────────────────┐     ┌──────────────────┐
-│  /reasoning     │     │  /section-update │
-│  (On-demand)    │     │  (Edit refinement)│
-└─────────────────┘     └──────────────────┘
+  ┌─────────────┐
+  │ Cached      │ ← Reasoning pre-loaded from initial response
+  │ Reasoning   │ ← NO additional API calls
+  └─────────────┘
 ```
+
+**Key Design:** One LLM call per diagnosis. Reasoning is embedded in initial response, not fetched on-demand.
 
 ---
 
@@ -35,9 +37,11 @@ Three mutually exclusive modes control form fields, validation, and prompt depth
 
 | Mode | Purpose | Visible Fields | Validation | Token Limit |
 |------|---------|----------------|------------|-------------|
-| `pre` | Quick triage | Minimal required | Loose | 1500 |
-| `detailed` | Full clinical | All standard | Moderate | 3000 |
-| `research` | Academic/complex | Standard + research | Contextual | 4000 |
+| `pre` | Quick triage | Minimal required | Loose | 2000 |
+| `detailed` | Full clinical | All standard | Moderate | 4000 |
+| `research` | Academic/complex | Standard + research | Contextual | 5000 |
+
+**All modes allow submission.** Difference is prompt depth, not permission.
 
 ### Mode-Specific Prompt Modifiers
 
@@ -136,7 +140,37 @@ await supabase.functions.invoke("diagnose", {
 
 ---
 
-## 4. AI PROMPT CONSTRUCTION
+## 4. AI RESPONSE CONTRACT (MANDATORY FORMAT)
+
+The AI **MUST** respond with Output and Reasoning for each section:
+
+```
+PRIMARY DIAGNOSIS:
+Output: [Ranked differential diagnosis with probability percentages]
+Reasoning: [Clinical reasoning explaining why these diagnoses are considered]
+
+INVESTIGATIVE TESTS:
+Output: [Recommended tests in order of priority]
+Reasoning: [Why each test is needed and what it will confirm/rule out]
+
+MEDICATION:
+Output: [Generic name (dosage) - Indian brand names, with frequency and duration]
+Reasoning: [Why these medications are chosen, mechanism of action, contraindication checks]
+
+FURTHER PROCEDURES:
+Output: [Next steps, referrals, follow-up schedule]
+Reasoning: [Why these procedures are recommended based on differential diagnosis]
+```
+
+### Medication Output Requirements (India Market)
+- Always specify **generic drug composition** and dosage
+- Provide **commonly available Indian market brand names**
+- No vague terms like "antibiotic" or "painkiller"
+- Format: `Generic Name (Dosage) - Indian Brand Names`
+
+---
+
+## 5. AI PROMPT CONSTRUCTION
 
 ### Location: `supabase/functions/diagnose/index.ts`
 
@@ -162,17 +196,34 @@ CRITICAL SAFETY INSTRUCTIONS:
 
 ${MODE_MODIFIER}
 
+MEDICATION INSTRUCTIONS (CRITICAL):
+- Always specify generic drug composition and dosage
+- Provide commonly available Indian market brand names where applicable
+- Do not output vague terms like "antibiotic" or "painkiller"
+- Avoid unavailable or region-specific brands outside India
+
 Instructions:
-- Analyze the patient data including examination findings provided by the examining physician
-- Provide a structured diagnostic assessment following evidence-based clinical guidelines
+- For each section, provide both the clinical Output AND the Reasoning behind it
 - For PRIMARY DIAGNOSIS: Provide a ranked differential diagnosis with probability percentages
 
-Respond ONLY in the following EXACT structure:
+RESPONSE FORMAT (STRICTLY FOLLOW):
+Each section MUST have Output: and Reasoning: subfields.
 
 PRIMARY DIAGNOSIS:
+Output: [ranked differential with probabilities]
+Reasoning: [clinical reasoning]
+
 INVESTIGATIVE TESTS:
+Output: [tests]
+Reasoning: [rationale]
+
 MEDICATION:
+Output: [generic (dose) - Indian brands]
+Reasoning: [drug selection rationale]
+
 FURTHER PROCEDURES:
+Output: [procedures and follow-up]
+Reasoning: [procedure rationale]
 ```
 
 ### Context Pruning
@@ -193,73 +244,6 @@ const pruneEmptyFields = (obj) => {
 
 ---
 
-## 5. SECTION-LEVEL INTELLIGENCE
-
-### 5.1 State Structure
-
-```typescript
-interface DiagnosisState {
-  result: DiagnosisResult;
-  mode: DiagnosisMode;
-  sections: Record<SectionKey, SectionState>;
-}
-
-interface SectionState {
-  output: string;              // Current section content
-  reasoning: string | null;    // Cached reasoning explanation
-  isLoadingReasoning: boolean;
-  isLoadingEdit: boolean;
-}
-```
-
-### 5.2 Reasoning Endpoint
-
-`POST /reasoning`
-
-**Purpose:** Generate clinical reasoning for a specific section.
-
-**Payload:**
-```typescript
-{
-  section: SectionKey;
-  sectionOutput: string;
-  doctorProfile: { designation, degree, specialization };
-  patientSummary: { age, gender, symptoms, diagnosis };
-}
-```
-
-**Response:** `{ reasoning: string }`
-
-### 5.3 Section Update Endpoint
-
-`POST /section-update`
-
-**Purpose:** Regenerate only one section based on doctor instruction.
-
-**Payload:**
-```typescript
-{
-  section: SectionKey;
-  editInstruction: string;
-  fullDiagnosisText: string;
-  doctorProfile: { designation, degree, specialization };
-  patientSummaryCompressed: { age, gender, symptoms, allergies?, currentMedications? };
-}
-```
-
-**Context Pruning by Section:**
-
-| Section | Required Context |
-|---------|-----------------|
-| primaryDiagnosis | Full patient context |
-| investigativeTests | Diagnosis + vitals |
-| medication | Allergies + medications + diagnosis |
-| furtherProcedures | Diagnosis + tests |
-
-**Response:** `{ updatedContent: string }`
-
----
-
 ## 6. RESPONSE PARSING
 
 ### Location: `src/lib/parseDiagnosis.ts`
@@ -268,59 +252,81 @@ interface SectionState {
 
 ```typescript
 export function parseDiagnosis(response: string): DiagnosisResult {
-  const result: DiagnosisResult = {
-    primaryDiagnosis: "",
-    investigativeTests: "",
-    medication: "",
-    furtherProcedures: "",
-    rawResponse: response,
-  };
-
-  // Extract PRIMARY DIAGNOSIS section
-  const diagnosisMatch = response.match(
-    /PRIMARY DIAGNOSIS:\s*([\s\S]*?)(?=INVESTIGATIVE TESTS:|$)/i
-  );
-  // ... similar for other sections
-  
-  return result;
+  // 1. Extract each main section (PRIMARY DIAGNOSIS, INVESTIGATIVE TESTS, etc.)
+  // 2. For each section, parse Output: and Reasoning: subfields
+  // 3. Return structured result with all outputs and reasonings
 }
 ```
 
-### Regex Patterns:
+### Result Structure:
 
-| Section | Pattern | Captures Until |
-|---------|---------|----------------|
-| PRIMARY DIAGNOSIS | `/PRIMARY DIAGNOSIS:\s*([\s\S]*?)(?=INVESTIGATIVE TESTS:\|$)/i` | Next section or end |
-| INVESTIGATIVE TESTS | `/INVESTIGATIVE TESTS:\s*([\s\S]*?)(?=MEDICATION:\|$)/i` | Next section or end |
-| MEDICATION | `/MEDICATION:\s*([\s\S]*?)(?=FURTHER PROCEDURES:\|$)/i` | Next section or end |
-| FURTHER PROCEDURES | `/FURTHER PROCEDURES:\s*([\s\S]*?)$/i` | End of string |
-
----
-
-## 7. UI OUTPUT MAPPING
-
-### Location: `src/components/results/DiagnosisResults.tsx`
-
-Each result section renders in `ResultCard` component with 3 tabs:
-
-| Tab | Content | Behavior |
-|-----|---------|----------|
-| Output | Parsed section content | Default view |
-| Reasoning | AI-generated explanation | Fetched on demand, cached |
-| Edit | Instruction textarea | Triggers section regeneration |
-
-### Parsing Failure Detection:
 ```typescript
-const hasParsingIssue =
-  !result.primaryDiagnosis &&
-  !result.investigativeTests &&
-  !result.medication &&
-  !result.furtherProcedures;
+interface DiagnosisResult {
+  primaryDiagnosis: string;
+  primaryDiagnosisReasoning: string;
+  investigativeTests: string;
+  investigativeTestsReasoning: string;
+  medication: string;
+  medicationReasoning: string;
+  furtherProcedures: string;
+  furtherProceduresReasoning: string;
+  rawResponse: string;  // Fallback for parsing failures
+}
 ```
 
+### Section Extraction Logic:
+
+1. Find section marker (e.g., `PRIMARY DIAGNOSIS:`)
+2. Extract content until next section marker
+3. Within content, find `Output:` and `Reasoning:` subfields
+4. Fallback: If no subfields found, entire content becomes output
+
 ---
 
-## 8. ERROR HANDLING
+## 7. UI STATE STRUCTURE
+
+### DiagnosisState
+```typescript
+interface DiagnosisState {
+  result: DiagnosisResult;
+  mode: DiagnosisMode;
+  sections: Record<SectionKey, SectionState>;
+}
+
+interface SectionState {
+  output: string;     // Clinical recommendation
+  reasoning: string;  // Clinical rationale (pre-loaded)
+}
+```
+
+### UI Tabs (2 tabs per section)
+
+| Tab | Content | Source | API Call |
+|-----|---------|--------|----------|
+| **Output** | Clinical recommendation | `sectionState.output` | None |
+| **Reasoning** | Clinical rationale | `sectionState.reasoning` | **None** (pre-loaded) |
+
+**Key Behavior:**
+- Reasoning tab does NOT trigger API calls
+- All data comes from initial diagnosis response
+- Zero latency on tab toggle
+
+---
+
+## 8. REMOVED FEATURES
+
+The following features were **intentionally removed** for token efficiency:
+
+| Feature | Status | Reason |
+|---------|--------|--------|
+| Edit Tab | Removed | Token savings, complexity reduction |
+| `/section-update` endpoint | Deleted | No longer needed |
+| `/reasoning` endpoint | Deleted | Reasoning now in initial response |
+| Dynamic reasoning fetch | Removed | Pre-cached from initial call |
+
+---
+
+## 9. ERROR HANDLING
 
 ### Edge Function Errors:
 - 429: Rate limit exceeded
@@ -331,18 +337,40 @@ const hasParsingIssue =
 ### Frontend Error Display:
 Toast notification with error message via `useToast` hook.
 
+### Parsing Failure Detection:
+```typescript
+const hasParsingIssue =
+  !result.primaryDiagnosis &&
+  !result.investigativeTests &&
+  !result.medication &&
+  !result.furtherProcedures;
+```
+
+If parsing fails → rawResponse shown in expandable panel.
+
 ---
 
-## 9. TECHNICAL CONFIGURATION
+## 10. TECHNICAL CONFIGURATION
 
 - **Model:** `google/gemini-2.5-flash`
 - **Temperature:** `0.3` (prioritizes consistency)
-- **Max Tokens:** Variable by mode (1500/3000/4000)
+- **Max Tokens:** Variable by mode (2000/4000/5000)
 - **Gateway:** `https://ai.gateway.lovable.dev/v1/chat/completions`
 
 ---
 
-## 10. FLOW SUMMARY
+## 11. PERFORMANCE GUARANTEES
+
+| Constraint | Value |
+|------------|-------|
+| LLM calls per diagnosis | **1** |
+| Reasoning tab API calls | **0** |
+| Edit regeneration loops | **Removed** |
+| Tab toggle latency | **0ms** |
+
+---
+
+## 12. FLOW SUMMARY
 
 ```
 1. User selects Diagnosis Mode (pre/detailed/research)
@@ -351,11 +379,11 @@ Toast notification with error message via `useToast` hook.
 4. Data sent to edge function: { doctor, patient, mode }
 5. Edge function builds systemPrompt + userPrompt with mode modifier
 6. API call to Lovable AI Gateway (Gemini 2.5 Flash)
-7. Raw response extracted from choices[0].message.content
+7. Response includes Output + Reasoning for each section
 8. Response returned as { diagnosis: content, mode }
 9. Frontend calls parseDiagnosis(response.diagnosis)
-10. Regex extracts 4 sections into DiagnosisResult object
-11. DiagnosisResults component renders 4 ResultCards with tabs
-12. User can request reasoning or edit any section independently
+10. Parser extracts 4 sections with their outputs and reasonings
+11. DiagnosisResults component renders 4 ResultCards
+12. Each card has 2 tabs: Output and Reasoning (pre-loaded)
 13. If parsing fails → rawResponse shown in expandable panel
 ```
