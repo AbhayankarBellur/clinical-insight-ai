@@ -41,15 +41,15 @@ export default function DiagnosisResultsPage() {
             AI-generated diagnostic assessment based on clinical data
           </p>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="p-3 bg-accent/50 rounded-lg">
-              <p className="text-xs font-medium text-muted-foreground mb-1">AI Doctor</p>
-              <p className="text-sm text-foreground">
+            <div className="p-4 bg-accent/50 rounded-xl border border-border">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">AI Doctor</p>
+              <p className="text-sm font-medium text-foreground">
                 {doctor.designation} ({doctor.degree})
               </p>
             </div>
-            <div className="p-3 bg-accent/50 rounded-lg">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Patient</p>
-              <p className="text-sm text-foreground">
+            <div className="p-4 bg-accent/50 rounded-xl border border-border">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Patient</p>
+              <p className="text-sm font-medium text-foreground">
                 {patient.age}y {patient.gender} — BP: {patient.bp}, O2: {patient.o2}%
               </p>
             </div>

@@ -5,14 +5,14 @@
 @tailwind utilities;
 
 /* Intuition - Clinical Decision Support Design System
-   Hospital-grade aesthetic: calm, structured, minimal, audit-safe
-   No gradients, no playful visuals
+   Hospital-grade aesthetic: calm, structured, polished
+   Professional with depth — not flat or dull
 */
 
 @layer base {
   :root {
     /* Clinical slate/charcoal base */
-    --background: 210 20% 98%;
+    --background: 210 20% 97%;
     --foreground: 222 47% 11%;
 
     /* Cards use pure white for maximum readability */
@@ -43,7 +43,7 @@
     --destructive-foreground: 0 0% 100%;
 
     /* Success - clinical green */
-    --success: 142 71% 35%;
+    --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
 
     /* Warning - amber */
@@ -54,11 +54,11 @@
     --critical: 0 84% 50%;
     --critical-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
     --ring: 200 80% 35%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* Sidebar for navigation */
     --sidebar-background: 210 20% 98%;
@@ -96,7 +96,7 @@
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
-    --success: 142 71% 30%;
+    --success: 152 60% 30%;
     --success-foreground: 210 40% 98%;
 
     --warning: 38 92% 40%;
@@ -139,7 +139,7 @@
 @layer components {
   /* Clinical card styles */
   .clinical-card {
-    @apply bg-card border border-border rounded-lg shadow-sm;
+    @apply bg-card border border-border rounded-xl shadow-sm;
   }
 
   /* Step indicator styles */
@@ -157,17 +157,17 @@
 
   /* Form field focus */
   .clinical-input {
-    @apply border-border focus:border-primary focus:ring-1 focus:ring-primary;
+    @apply border-border rounded-lg focus:border-primary focus:ring-1 focus:ring-primary transition-colors;
   }
 
   /* Section headers */
   .section-header {
-    @apply text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3;
+    @apply text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3;
   }
 
   /* Diagnosis result cards */
   .result-card {
-    @apply clinical-card p-6;
+    @apply clinical-card p-6 transition-shadow hover:shadow-md;
   }
 
   .result-card-header {
@@ -185,9 +185,8 @@
   }
 }
 
-/* Print Styles - Remove all branding and navigation */
+/* Print Styles */
 @media print {
-  /* Hide navigation, headers, footers, branding */
   .app-header,
   .app-footer,
   .stepper,
@@ -203,12 +202,10 @@
     display: none !important;
   }
 
-  /* Show print-only elements */
   .print-only {
     display: block !important;
   }
 
-  /* Reset page styles for clean printing */
   body {
     background: white !important;
     color: black !important;
@@ -216,7 +213,6 @@
     line-height: 1.4;
   }
 
-  /* Clean card styles for print */
   .clinical-card,
   .result-card {
     border: 1px solid #ccc !important;
@@ -225,26 +221,22 @@
     margin-bottom: 1rem;
   }
 
-  /* Ensure text is readable */
   * {
     color: black !important;
     background: white !important;
   }
 
-  /* Page setup */
   @page {
     margin: 1.5cm;
     size: A4;
   }
 
-  /* Ensure content fits on page */
   .print-content {
     max-width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
   }
 
-  /* Medical disclaimer styling for print */
   .medical-disclaimer {
     border-top: 2px solid #333;
     padding-top: 1rem;

@@ -2,23 +2,7 @@ import { DiagnosisResult } from "@/types/medical";
 
 /**
  * Parse the structured diagnosis response from the LLM.
- * Expected format for each section:
- * 
- * PRIMARY DIAGNOSIS:
- * Output: ...
- * Reasoning: ...
- * 
- * INVESTIGATIVE TESTS:
- * Output: ...
- * Reasoning: ...
- * 
- * MEDICATION:
- * Output: ...
- * Reasoning: ...
- * 
- * FURTHER PROCEDURES:
- * Output: ...
- * Reasoning: ...
+ * Uses strict line-start matching to prevent content bleeding between sections.
  */
 export function parseDiagnosis(response: string): DiagnosisResult {
   const result: DiagnosisResult = {
@@ -33,12 +17,17 @@ export function parseDiagnosis(response: string): DiagnosisResult {
     rawResponse: response,
   };
 
-  // Extract each main section
+  // Normalize separators if present (--- SECTION --- format)
+  const normalized = response
+    .replace(/---\s*/g, "")
+    .replace(/\s*---/g, "");
+
+  // Extract each main section using line-start anchored patterns
   const sections = {
-    primaryDiagnosis: extractSection(response, "PRIMARY DIAGNOSIS", "INVESTIGATIVE TESTS"),
-    investigativeTests: extractSection(response, "INVESTIGATIVE TESTS", "MEDICATION"),
-    medication: extractSection(response, "MEDICATION", "FURTHER PROCEDURES"),
-    furtherProcedures: extractSection(response, "FURTHER PROCEDURES", null),
+    primaryDiagnosis: extractSection(normalized, "PRIMARY DIAGNOSIS", ["INVESTIGATIVE TESTS"]),
+    investigativeTests: extractSection(normalized, "INVESTIGATIVE TESTS", ["MEDICATION"]),
+    medication: extractSection(normalized, "MEDICATION", ["FURTHER PROCEDURES"]),
+    furtherProcedures: extractSection(normalized, "FURTHER PROCEDURES", []),
   };
 
   // Parse output and reasoning from each section
@@ -65,52 +54,82 @@ export function parseDiagnosis(response: string): DiagnosisResult {
 }
 
 /**
- * Extract content between two section markers
+ * Extract content between two section markers.
+ * Uses line-start anchoring to prevent matching section names embedded in content.
  */
-function extractSection(text: string, startMarker: string, endMarker: string | null): string {
-  // Create pattern for start marker (handles optional ## and :)
-  const startPattern = new RegExp(`(?:##\\s*)?${startMarker}:?\\s*`, "i");
+function extractSection(text: string, startMarker: string, endMarkers: string[]): string {
+  // Match marker at start of line, with optional ##, **, whitespace, and colon
+  const startPattern = new RegExp(
+    `(?:^|\\n)\\s*(?:#{1,3}\\s*)?(?:\\*{0,2})\\s*${escapeRegex(startMarker)}\\s*(?:\\*{0,2})\\s*:?\\s*`,
+    "i"
+  );
   const startMatch = text.match(startPattern);
   
   if (!startMatch) return "";
   
   const startIndex = startMatch.index! + startMatch[0].length;
+  const remainingText = text.substring(startIndex);
   
-  if (endMarker) {
-    const endPattern = new RegExp(`(?:##\\s*)?${endMarker}:?`, "i");
-    const remainingText = text.substring(startIndex);
-    const endMatch = remainingText.match(endPattern);
+  if (endMarkers.length > 0) {
+    // Find the earliest end marker that appears at the start of a line
+    let earliestEnd = remainingText.length;
     
-    if (endMatch) {
-      return remainingText.substring(0, endMatch.index).trim();
+    for (const endMarker of endMarkers) {
+      const endPattern = new RegExp(
+        `(?:^|\\n)\\s*(?:#{1,3}\\s*)?(?:\\*{0,2})\\s*${escapeRegex(endMarker)}\\s*(?:\\*{0,2})\\s*:?`,
+        "i"
+      );
+      const endMatch = remainingText.match(endPattern);
+      if (endMatch && endMatch.index! < earliestEnd) {
+        earliestEnd = endMatch.index!;
+      }
     }
+    
+    return remainingText.substring(0, earliestEnd).trim();
   }
   
-  return text.substring(startIndex).trim();
+  return remainingText.trim();
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
- * Parse Output and Reasoning from a section's content
- * Expected format:
- * Output: <content>
- * Reasoning: <content>
- * 
- * Falls back to treating entire content as output if markers not found
+ * Parse Output and Reasoning from a section's content.
+ * Strictly separates the two subfields to prevent content from one leaking into the other.
  */
 function parseOutputAndReasoning(content: string): { output: string; reasoning: string } {
-  // Try to find explicit Output: and Reasoning: markers
-  const outputMatch = content.match(/Output:\s*([\s\S]*?)(?=Reasoning:|$)/i);
-  const reasoningMatch = content.match(/Reasoning:\s*([\s\S]*?)$/i);
+  // Match "Output:" at the start of a line
+  const outputPattern = /(?:^|\n)\s*(?:\*{0,2})Output(?:\*{0,2})\s*:\s*/i;
+  const reasoningPattern = /(?:^|\n)\s*(?:\*{0,2})Reasoning(?:\*{0,2})\s*:\s*/i;
+
+  const outputMatch = content.match(outputPattern);
+  const reasoningMatch = content.match(reasoningPattern);
 
   if (outputMatch && reasoningMatch) {
+    const outputStart = outputMatch.index! + outputMatch[0].length;
+    const reasoningStart = reasoningMatch.index! + reasoningMatch[0].length;
+    
+    // Output is everything between Output: and Reasoning:
+    const outputEnd = reasoningMatch.index!;
+    const output = content.substring(outputStart, outputEnd).trim();
+    
+    // Reasoning is everything after Reasoning: to the end
+    const reasoning = content.substring(reasoningStart).trim();
+    
+    return { output, reasoning };
+  }
+
+  if (outputMatch && !reasoningMatch) {
+    const outputStart = outputMatch.index! + outputMatch[0].length;
     return {
-      output: outputMatch[1].trim(),
-      reasoning: reasoningMatch[1].trim(),
+      output: content.substring(outputStart).trim(),
+      reasoning: "",
     };
   }
 
-  // Fallback: if no markers found, entire content is output
-  // This handles backward compatibility with older format
+  // Fallback: entire content is output
   return {
     output: content.trim(),
     reasoning: "",
