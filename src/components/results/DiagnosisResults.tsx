@@ -1,7 +1,8 @@
-import { DiagnosisResult, DoctorConfig, PatientData, DiagnosisState, SectionKey } from "@/types/medical";
+import { DiagnosisResult, DoctorConfig, PatientData, DiagnosisState } from "@/types/medical";
 import { ResultCard } from "./ResultCard";
 import { Button } from "@/components/ui/button";
 import { Printer, RefreshCw, Settings, AlertCircle, Zap, FileText, Microscope } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface DiagnosisResultsProps {
   result: DiagnosisResult;
@@ -13,9 +14,9 @@ interface DiagnosisResultsProps {
 }
 
 const modeLabels = {
-  pre: { label: "Pre-Diagnosis", icon: Zap },
-  detailed: { label: "Detailed Diagnosis", icon: FileText },
-  research: { label: "Diagnostic Research", icon: Microscope },
+  pre: { label: "Pre-Diagnosis", icon: Zap, color: "bg-warning/10 text-warning" },
+  detailed: { label: "Detailed Diagnosis", icon: FileText, color: "bg-primary/10 text-primary" },
+  research: { label: "Diagnostic Research", icon: Microscope, color: "bg-accent text-accent-foreground" },
 };
 
 export function DiagnosisResults({
@@ -41,7 +42,7 @@ export function DiagnosisResults({
 
   return (
     <div className="space-y-6 print-content">
-      {/* Print Header - Only visible when printing */}
+      {/* Print Header */}
       <div className="print-only mb-6">
         <h1 className="text-xl font-bold mb-2">Clinical Decision Support Report</h1>
         <p className="text-sm text-muted-foreground">
@@ -49,10 +50,15 @@ export function DiagnosisResults({
         </p>
       </div>
 
-      {/* Mode indicator */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground no-print">
-        <ModeIcon className="w-4 h-4" />
-        <span>{modeLabels[mode].label} Mode</span>
+      {/* Mode indicator badge */}
+      <div className="no-print">
+        <span className={cn(
+          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
+          modeLabels[mode].color
+        )}>
+          <ModeIcon className="w-3.5 h-3.5" />
+          {modeLabels[mode].label} Mode
+        </span>
       </div>
 
       {/* Doctor & Patient Summary - Print only */}
@@ -83,7 +89,7 @@ export function DiagnosisResults({
       )}
 
       {hasParsingIssue && (
-        <div className="clinical-card p-4 border-l-4 border-l-warning no-print">
+        <div className="clinical-card p-4 border-l-4 border-l-warning no-print rounded-xl">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
             <div>
@@ -132,8 +138,8 @@ export function DiagnosisResults({
         />
       )}
 
-      {/* Medical Disclaimer - Always visible, styled for print */}
-      <div className="clinical-card p-4 medical-disclaimer">
+      {/* Medical Disclaimer */}
+      <div className="clinical-card p-4 medical-disclaimer rounded-xl">
         <p className="text-xs text-muted-foreground">
           <strong>Medical Disclaimer:</strong> This clinical decision support tool is intended 
           for use by licensed medical professionals only. All recommendations must be validated 
@@ -142,17 +148,17 @@ export function DiagnosisResults({
         </p>
       </div>
 
-      {/* Action buttons - Hidden during print */}
+      {/* Action buttons */}
       <div className="flex flex-wrap gap-3 justify-center pt-4 no-print">
-        <Button onClick={handlePrint} variant="outline">
+        <Button onClick={handlePrint} variant="outline" className="rounded-xl">
           <Printer className="w-4 h-4 mr-2" />
           Print Report
         </Button>
-        <Button onClick={onNewPatient} variant="outline">
+        <Button onClick={onNewPatient} variant="outline" className="rounded-xl">
           <RefreshCw className="w-4 h-4 mr-2" />
           New Patient
         </Button>
-        <Button onClick={onReconfigure} variant="outline">
+        <Button onClick={onReconfigure} variant="outline" className="rounded-xl">
           <Settings className="w-4 h-4 mr-2" />
           Reconfigure Doctor
         </Button>

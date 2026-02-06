@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PatientForm } from "@/components/forms/PatientForm";
+import { DiagnosisModeSelector } from "@/components/forms/DiagnosisModeSelector";
 import { useDiagnosis } from "@/context/DiagnosisContext";
 import { PatientData, DiagnosisMode } from "@/types/medical";
 import { parseDiagnosis } from "@/lib/parseDiagnosis";
@@ -13,6 +14,7 @@ export default function PatientSummary() {
   const { doctor, setPatient, setDiagnosisResult, diagnosisMode } = useDiagnosis();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<DiagnosisMode>(diagnosisMode);
 
   // Redirect if no doctor configured
   if (!doctor) {
@@ -20,7 +22,7 @@ export default function PatientSummary() {
     return null;
   }
 
-  const handleSubmit = async (data: PatientData, mode: DiagnosisMode) => {
+  const handleSubmit = async (data: PatientData, formMode: DiagnosisMode) => {
     setIsLoading(true);
     setPatient(data);
 
@@ -66,7 +68,7 @@ export default function PatientSummary() {
           <p className="text-muted-foreground">
             Enter comprehensive patient data for diagnostic analysis
           </p>
-          <div className="mt-4 p-3 bg-accent/50 rounded-lg">
+          <div className="mt-4 p-4 bg-accent/50 rounded-xl border border-border">
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">AI Doctor Profile:</span>{" "}
               {doctor.designation} ({doctor.degree}) — {doctor.specialization}
@@ -74,17 +76,21 @@ export default function PatientSummary() {
           </div>
         </div>
 
+        {/* Mode selector outside the form so form remounts with correct schema */}
+        <DiagnosisModeSelector value={mode} onChange={setMode} />
+
         <PatientForm
+          key={mode}
           onSubmit={handleSubmit}
           onBack={handleBack}
           isLoading={isLoading}
-          initialMode={diagnosisMode}
+          initialMode={mode}
         />
       </div>
 
       {isLoading && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="clinical-card p-8 text-center max-w-md">
+          <div className="clinical-card p-8 text-center max-w-md rounded-2xl shadow-lg">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">
               Analyzing Clinical Data

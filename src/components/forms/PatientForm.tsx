@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PatientData, DiagnosisMode } from "@/types/medical";
-import { DiagnosisModeSelector } from "./DiagnosisModeSelector";
 import { ArrowLeft, Stethoscope, AlertTriangle, Pill, Activity, ChevronDown, Microscope } from "lucide-react";
 import { useState } from "react";
 
@@ -34,41 +33,11 @@ const createSchema = (mode: DiagnosisMode) => {
       : z.string().min(50, "Minimum 50 characters").max(2000),
   };
 
-  if (mode === "pre") {
-    return z.object({
-      ...baseSchema,
-      nationality: z.string().max(100).optional(),
-      height: z.number().min(0).max(300).optional(),
-      physicalAttributes: z.string().max(500).optional(),
-      history: z.string().max(1500).optional(),
-      drugAllergies: z.string().max(800).optional(),
-      foodAllergies: z.string().max(800).optional(),
-      environmentalAllergies: z.string().max(500).optional(),
-      currentMedications: z.string().max(800).optional(),
-      recentlyStoppedMedications: z.string().max(800).optional(),
-      currentTreatments: z.string().max(800).optional(),
-      pastTreatments: z.string().max(800).optional(),
-      // Research fields
-      familyMedicalHistory: z.string().max(2000).optional(),
-      geneticConditions: z.string().max(1000).optional(),
-      epidemiologicalExposure: z.string().max(1000).optional(),
-      travelHistory: z.string().max(1000).optional(),
-      occupationalExposure: z.string().max(1000).optional(),
-      immunizationHistory: z.string().max(1000).optional(),
-      previousLabResults: z.string().max(3000).optional(),
-      imagingFindings: z.string().max(2000).optional(),
-      specialistOpinions: z.string().max(2000).optional(),
-      researchNotes: z.string().max(5000).optional(),
-    });
-  }
-
-  // Detailed and Research modes
-  return z.object({
-    ...baseSchema,
+  const optionalFields = {
     nationality: z.string().max(100).optional(),
-    height: z.number().min(0).max(300),
+    height: z.number().min(0).max(300).optional(),
     physicalAttributes: z.string().max(500).optional(),
-    history: z.string().min(20, "Minimum 20 characters").max(1500),
+    history: z.string().max(1500).optional(),
     drugAllergies: z.string().max(800).optional(),
     foodAllergies: z.string().max(800).optional(),
     environmentalAllergies: z.string().max(500).optional(),
@@ -76,7 +45,6 @@ const createSchema = (mode: DiagnosisMode) => {
     recentlyStoppedMedications: z.string().max(800).optional(),
     currentTreatments: z.string().max(800).optional(),
     pastTreatments: z.string().max(800).optional(),
-    // Research fields
     familyMedicalHistory: z.string().max(2000).optional(),
     geneticConditions: z.string().max(1000).optional(),
     epidemiologicalExposure: z.string().max(1000).optional(),
@@ -87,6 +55,18 @@ const createSchema = (mode: DiagnosisMode) => {
     imagingFindings: z.string().max(2000).optional(),
     specialistOpinions: z.string().max(2000).optional(),
     researchNotes: z.string().max(5000).optional(),
+  };
+
+  if (mode === "pre") {
+    return z.object({ ...baseSchema, ...optionalFields });
+  }
+
+  // Detailed and Research modes require height and history
+  return z.object({
+    ...baseSchema,
+    ...optionalFields,
+    height: z.number().min(0).max(300),
+    history: z.string().min(20, "Minimum 20 characters").max(1500),
   });
 };
 
@@ -100,7 +80,7 @@ interface PatientFormProps {
 }
 
 export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detailed" }: PatientFormProps) {
-  const [mode, setMode] = useState<DiagnosisMode>(initialMode);
+  const mode = initialMode;
   const [researchOpen, setResearchOpen] = useState(false);
   
   const schema = createSchema(mode);
@@ -188,9 +168,6 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      {/* Diagnosis Mode Selector */}
-      <DiagnosisModeSelector value={mode} onChange={setMode} />
-
       {/* Demographics Card */}
       <div className="clinical-card p-6">
         <h3 className="section-header">Demographics</h3>
@@ -337,7 +314,7 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
         </div>
       </div>
 
-      {/* Allergies & Medications - Collapsed in Pre mode */}
+      {/* Allergies & Medications */}
       <div className="clinical-card p-6 border-l-4 border-l-warning">
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="w-5 h-5 text-warning" />
@@ -417,7 +394,7 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
           </div>
         </div>
 
-        {/* Treatments Section - Only in detailed/research */}
+        {/* Treatments Section */}
         {showDetailedFields && (
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -509,10 +486,10 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
         </div>
       </div>
 
-      {/* Research Context Section - Only in Research mode */}
+      {/* Research Context Section */}
       {showResearchFields && (
         <Collapsible open={researchOpen} onOpenChange={setResearchOpen}>
-          <div className="clinical-card p-6 border-l-4 border-l-accent">
+          <div className="clinical-card p-6 border-l-4 border-l-accent-foreground">
             <CollapsibleTrigger className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
                 <Microscope className="w-5 h-5 text-accent-foreground" />

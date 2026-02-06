@@ -30,7 +30,6 @@ interface PatientData {
   recentlyStoppedMedications: string;
   currentTreatments: string;
   pastTreatments: string;
-  // Research fields
   familyMedicalHistory?: string;
   geneticConditions?: string;
   epidemiologicalExposure?: string;
@@ -45,7 +44,6 @@ interface PatientData {
 
 type DiagnosisMode = "pre" | "detailed" | "research";
 
-// Mode-specific prompt modifiers
 const getModeModifier = (mode: DiagnosisMode): string => {
   switch (mode) {
     case "pre":
@@ -76,7 +74,6 @@ DETAILED DIAGNOSIS MODE:
   }
 };
 
-// Prune empty fields to reduce tokens
 const pruneEmptyFields = (obj: Record<string, unknown>): Record<string, unknown> => {
   const pruned: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
@@ -131,7 +128,7 @@ MEDICATION INSTRUCTIONS (CRITICAL):
 - Provide commonly available Indian market brand names where applicable
 - Do not output vague terms like "antibiotic" or "painkiller"
 - Avoid unavailable or region-specific brands outside India
-- Format: Generic Name (Dosage) - Indian Brand Names
+- Format each medication as: Generic Name (Dosage) - Indian Brand Names
 
 Instructions:
 - Analyze the patient data including examination findings provided by the examining physician
@@ -140,27 +137,31 @@ Instructions:
 - Ensure all recommendations align with current standard of care for your specialization
 - For PRIMARY DIAGNOSIS: Provide a ranked differential diagnosis with probability percentages (e.g., "Condition A (65%)")
 - For each section, provide both the clinical Output AND the Reasoning behind it
+- Order items by clinical priority/probability (most important first)
+- For INVESTIGATIVE TESTS: Order by clinical urgency, most crucial tests first
 
-RESPONSE FORMAT (STRICTLY FOLLOW):
-Respond ONLY in this EXACT structure. Each section MUST have Output: and Reasoning: subfields.
+RESPONSE FORMAT (STRICTLY FOLLOW THIS EXACT STRUCTURE):
+Each section MUST start on its own line with the section header.
+Each section MUST contain exactly two subfields: "Output:" and "Reasoning:" each on their own line.
+Do NOT nest section names inside other sections' content.
+Do NOT repeat content from one section in another.
 
 PRIMARY DIAGNOSIS:
 Output: [Your ranked differential diagnosis with probability percentages]
 Reasoning: [Clinical reasoning explaining why these diagnoses are considered]
 
 INVESTIGATIVE TESTS:
-Output: [Recommended tests in order of priority]
+Output: [Recommended tests in order of clinical urgency]
 Reasoning: [Why each test is needed and what it will confirm/rule out]
 
 MEDICATION:
-Output: [Generic name (dosage) - Indian brand names, with frequency and duration]
+Output: [Generic Name (Dosage) - Indian Brand Names, with frequency and duration for each]
 Reasoning: [Why these medications are chosen, mechanism of action, contraindication checks]
 
 FURTHER PROCEDURES:
 Output: [Next steps, referrals, follow-up schedule]
 Reasoning: [Why these procedures are recommended based on differential diagnosis]`;
 
-    // Build context sections with pruning
     const prunedPatient = pruneEmptyFields(patient as unknown as Record<string, unknown>);
 
     const allergiesSection = [
@@ -179,7 +180,6 @@ Reasoning: [Why these procedures are recommended based on differential diagnosis
       prunedPatient.pastTreatments && `Past Treatments/Surgeries: ${prunedPatient.pastTreatments}`,
     ].filter(Boolean).join("\n") || "No ongoing treatments reported";
 
-    // Research context (only in research mode)
     let researchSection = "";
     if (mode === "research") {
       const researchFields = [
@@ -228,22 +228,22 @@ ${patient.symptoms}
 ${patient.history ? `MEDICAL HISTORY:\n${patient.history}` : ""}
 ${researchSection}
 
-Provide your response in EXACTLY this format with Output: and Reasoning: for each section:
+IMPORTANT: Respond using EXACTLY the format below. Each section must start on a NEW LINE with the section name. Do NOT include content from one section inside another. Each section has exactly two subfields: Output: and Reasoning:
 
 PRIMARY DIAGNOSIS:
-Output: [ranked differential with probabilities]
+Output: [ranked differential with probabilities, most likely first]
 Reasoning: [clinical reasoning]
 
 INVESTIGATIVE TESTS:
-Output: [tests]
-Reasoning: [rationale]
+Output: [tests ordered by clinical urgency, most crucial first]
+Reasoning: [rationale for each test]
 
 MEDICATION:
-Output: [generic (dose) - Indian brands]
-Reasoning: [drug selection rationale]
+Output: [Generic Name (Dose) - Indian Brand Names, for each medication]
+Reasoning: [drug selection rationale and safety checks]
 
 FURTHER PROCEDURES:
-Output: [procedures and follow-up]
+Output: [procedures and follow-up ordered by priority]
 Reasoning: [procedure rationale]`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

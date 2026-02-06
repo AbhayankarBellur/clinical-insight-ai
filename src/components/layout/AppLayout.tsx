@@ -10,15 +10,15 @@ interface AppLayoutProps {
 export function AppLayout({ children, currentStep }: AppLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header - Hidden during print */}
-      <header className="border-b border-border bg-card app-header no-print">
+      {/* Header */}
+      <header className="border-b border-border bg-card/80 backdrop-blur-sm app-header no-print sticky top-0 z-40">
         <div className="container py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-foreground">
+              <h1 className="text-xl font-bold text-foreground tracking-tight">
                 Intuition
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase">
                 Clinical Decision Support
               </p>
             </div>
@@ -32,8 +32,8 @@ export function AppLayout({ children, currentStep }: AppLayoutProps) {
         {children}
       </main>
 
-      {/* Footer with disclaimer - Hidden during print (disclaimer shown in results) */}
-      <footer className="border-t border-border bg-card mt-auto app-footer no-print">
+      {/* Footer */}
+      <footer className="border-t border-border bg-card/50 mt-auto app-footer no-print">
         <div className="container py-4">
           <MedicalDisclaimer />
         </div>
