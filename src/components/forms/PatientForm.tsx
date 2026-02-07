@@ -15,7 +15,8 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PatientData, DiagnosisMode } from "@/types/medical";
 import { ArrowLeft, Stethoscope, AlertTriangle, Pill, Activity, ChevronDown, Microscope } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { VoiceInputButton } from "@/components/shared/VoiceInputButton";
 
 // Dynamic schema based on mode
 const createSchema = (mode: DiagnosisMode) => {
@@ -61,7 +62,6 @@ const createSchema = (mode: DiagnosisMode) => {
     return z.object({ ...baseSchema, ...optionalFields });
   }
 
-  // Detailed and Research modes require height and history
   return z.object({
     ...baseSchema,
     ...optionalFields,
@@ -77,6 +77,45 @@ interface PatientFormProps {
   onBack: () => void;
   isLoading: boolean;
   initialMode?: DiagnosisMode;
+}
+
+// Helper component for textarea with voice
+function VoiceTextarea({
+  label,
+  required,
+  fieldProps,
+  placeholder,
+  minH,
+  error,
+  hint,
+  onVoiceTranscript,
+}: {
+  label: string;
+  required?: boolean;
+  fieldProps: any;
+  placeholder: string;
+  minH?: string;
+  error?: string;
+  hint?: string;
+  onVoiceTranscript: (text: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>
+          {label} {required && <span className="text-destructive">*</span>}
+        </Label>
+        <VoiceInputButton onTranscript={onVoiceTranscript} />
+      </div>
+      <Textarea
+        {...fieldProps}
+        placeholder={placeholder}
+        className={`clinical-input ${minH || "min-h-[80px]"}`}
+      />
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
 }
 
 export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detailed" }: PatientFormProps) {
@@ -130,6 +169,13 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
   const height = watch("height");
   const bmi = weight && height ? (weight / Math.pow(height / 100, 2)).toFixed(1) : null;
 
+  // Voice transcript handler factory
+  const voiceHandler = useCallback((field: keyof FormData) => {
+    return (text: string) => {
+      setValue(field, text as any, { shouldValidate: true });
+    };
+  }, [setValue]);
+
   const handleFormSubmit = (data: FormData) => {
     onSubmit({
       age: data.age,
@@ -182,9 +228,7 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
               placeholder="0-120"
               className="clinical-input"
             />
-            {errors.age && (
-              <p className="text-sm text-destructive">{errors.age.message}</p>
-            )}
+            {errors.age && <p className="text-sm text-destructive">{errors.age.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -204,19 +248,13 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
                 <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
-            {errors.gender && (
-              <p className="text-sm text-destructive">{errors.gender.message}</p>
-            )}
+            {errors.gender && <p className="text-sm text-destructive">{errors.gender.message}</p>}
           </div>
 
           {showDetailedFields && (
             <div className="space-y-2">
               <Label htmlFor="nationality">Nationality</Label>
-              <Input
-                {...register("nationality")}
-                placeholder="Optional"
-                className="clinical-input"
-              />
+              <Input {...register("nationality")} placeholder="Optional" className="clinical-input" />
             </div>
           )}
         </div>
@@ -227,87 +265,44 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
         <h3 className="section-header">Vitals & Measurements</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="weight">
-              Weight (kg) <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              {...register("weight", { valueAsNumber: true })}
-              type="number"
-              step="0.1"
-              placeholder="0-500"
-              className="clinical-input"
-            />
-            {errors.weight && (
-              <p className="text-sm text-destructive">{errors.weight.message}</p>
-            )}
+            <Label htmlFor="weight">Weight (kg) <span className="text-destructive">*</span></Label>
+            <Input {...register("weight", { valueAsNumber: true })} type="number" step="0.1" placeholder="0-500" className="clinical-input" />
+            {errors.weight && <p className="text-sm text-destructive">{errors.weight.message}</p>}
           </div>
 
           {showDetailedFields && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="height">
-                  Height (cm) <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  {...register("height", { valueAsNumber: true })}
-                  type="number"
-                  step="0.1"
-                  placeholder="0-300"
-                  className="clinical-input"
-                />
-                {errors.height && (
-                  <p className="text-sm text-destructive">{errors.height.message}</p>
-                )}
+                <Label htmlFor="height">Height (cm) <span className="text-destructive">*</span></Label>
+                <Input {...register("height", { valueAsNumber: true })} type="number" step="0.1" placeholder="0-300" className="clinical-input" />
+                {errors.height && <p className="text-sm text-destructive">{errors.height.message}</p>}
               </div>
-
               <div className="space-y-2">
                 <Label>BMI (calculated)</Label>
-                <Input
-                  value={bmi ? `${bmi} kg/m²` : "—"}
-                  readOnly
-                  className="clinical-input bg-muted"
-                />
+                <Input value={bmi ? `${bmi} kg/m²` : "—"} readOnly className="clinical-input bg-muted" />
               </div>
             </>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="bp">
-              Blood Pressure <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              {...register("bp")}
-              placeholder="120/80"
-              className="clinical-input"
-            />
-            {errors.bp && (
-              <p className="text-sm text-destructive">{errors.bp.message}</p>
-            )}
+            <Label htmlFor="bp">Blood Pressure <span className="text-destructive">*</span></Label>
+            <Input {...register("bp")} placeholder="120/80" className="clinical-input" />
+            {errors.bp && <p className="text-sm text-destructive">{errors.bp.message}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="o2">
-              O2 Saturation (%) <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              {...register("o2", { valueAsNumber: true })}
-              type="number"
-              step="0.1"
-              placeholder="0-100"
-              className="clinical-input"
-            />
-            {errors.o2 && (
-              <p className="text-sm text-destructive">{errors.o2.message}</p>
-            )}
+            <Label htmlFor="o2">O2 Saturation (%) <span className="text-destructive">*</span></Label>
+            <Input {...register("o2", { valueAsNumber: true })} type="number" step="0.1" placeholder="0-100" className="clinical-input" />
+            {errors.o2 && <p className="text-sm text-destructive">{errors.o2.message}</p>}
           </div>
 
           {showDetailedFields && (
             <div className="space-y-2 md:col-span-3">
-              <Label htmlFor="physicalAttributes">Physical Attributes</Label>
-              <Textarea
-                {...register("physicalAttributes")}
+              <VoiceTextarea
+                label="Physical Attributes"
+                fieldProps={register("physicalAttributes")}
                 placeholder="Notable physical characteristics, body type (optional)"
-                className="clinical-input min-h-[80px]"
+                onVoiceTranscript={voiceHandler("physicalAttributes")}
               />
             </div>
           )}
@@ -328,73 +323,65 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
           </p>
         )}
 
-        {/* Allergies Section */}
+        {/* Allergies */}
         <div className="space-y-4 mb-6">
           <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
             Allergies & Sensitivities
           </h4>
           <div className={`grid grid-cols-1 ${showDetailedFields ? "md:grid-cols-3" : ""} gap-4`}>
-            <div className="space-y-2">
-              <Label htmlFor="drugAllergies">Drug Allergies</Label>
-              <Textarea
-                {...register("drugAllergies")}
-                placeholder="List known drug allergies and reactions"
-                className="clinical-input min-h-[80px]"
-              />
-            </div>
+            <VoiceTextarea
+              label="Drug Allergies"
+              fieldProps={register("drugAllergies")}
+              placeholder="List known drug allergies and reactions"
+              onVoiceTranscript={voiceHandler("drugAllergies")}
+            />
             {showDetailedFields && (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="foodAllergies">Food Allergies</Label>
-                  <Textarea
-                    {...register("foodAllergies")}
-                    placeholder="List known food allergies"
-                    className="clinical-input min-h-[80px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="environmentalAllergies">Environmental Allergies</Label>
-                  <Textarea
-                    {...register("environmentalAllergies")}
-                    placeholder="Pollen, dust, latex, etc."
-                    className="clinical-input min-h-[80px]"
-                  />
-                </div>
+                <VoiceTextarea
+                  label="Food Allergies"
+                  fieldProps={register("foodAllergies")}
+                  placeholder="List known food allergies"
+                  onVoiceTranscript={voiceHandler("foodAllergies")}
+                />
+                <VoiceTextarea
+                  label="Environmental Allergies"
+                  fieldProps={register("environmentalAllergies")}
+                  placeholder="Pollen, dust, latex, etc."
+                  onVoiceTranscript={voiceHandler("environmentalAllergies")}
+                />
               </>
             )}
           </div>
         </div>
 
-        {/* Medications Section */}
+        {/* Medications */}
         <div className="space-y-4 mb-6">
           <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Pill className="w-4 h-4" />
             Current & Recent Medications
           </h4>
           <div className={`grid grid-cols-1 ${showDetailedFields ? "md:grid-cols-2" : ""} gap-4`}>
-            <div className="space-y-2">
-              <Label htmlFor="currentMedications">Current Medications</Label>
-              <Textarea
-                {...register("currentMedications")}
-                placeholder="List all current medications with dosages"
-                className="clinical-input min-h-[100px]"
-              />
-            </div>
+            <VoiceTextarea
+              label="Current Medications"
+              fieldProps={register("currentMedications")}
+              placeholder="List all current medications with dosages"
+              minH="min-h-[100px]"
+              onVoiceTranscript={voiceHandler("currentMedications")}
+            />
             {showDetailedFields && (
-              <div className="space-y-2">
-                <Label htmlFor="recentlyStoppedMedications">Recently Stopped Medications</Label>
-                <Textarea
-                  {...register("recentlyStoppedMedications")}
-                  placeholder="Medications stopped within last 3 months"
-                  className="clinical-input min-h-[100px]"
-                />
-              </div>
+              <VoiceTextarea
+                label="Recently Stopped Medications"
+                fieldProps={register("recentlyStoppedMedications")}
+                placeholder="Medications stopped within last 3 months"
+                minH="min-h-[100px]"
+                onVoiceTranscript={voiceHandler("recentlyStoppedMedications")}
+              />
             )}
           </div>
         </div>
 
-        {/* Treatments Section */}
+        {/* Treatments */}
         {showDetailedFields && (
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -402,28 +389,26 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
               Ongoing / Past Treatments
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="currentTreatments">Current Treatments</Label>
-                <Textarea
-                  {...register("currentTreatments")}
-                  placeholder="Ongoing therapies, dialysis, chemotherapy, etc."
-                  className="clinical-input min-h-[100px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pastTreatments">Past Treatments / Surgeries</Label>
-                <Textarea
-                  {...register("pastTreatments")}
-                  placeholder="Previous surgeries, procedures, therapies"
-                  className="clinical-input min-h-[100px]"
-                />
-              </div>
+              <VoiceTextarea
+                label="Current Treatments"
+                fieldProps={register("currentTreatments")}
+                placeholder="Ongoing therapies, dialysis, chemotherapy, etc."
+                minH="min-h-[100px]"
+                onVoiceTranscript={voiceHandler("currentTreatments")}
+              />
+              <VoiceTextarea
+                label="Past Treatments / Surgeries"
+                fieldProps={register("pastTreatments")}
+                placeholder="Previous surgeries, procedures, therapies"
+                minH="min-h-[100px]"
+                onVoiceTranscript={voiceHandler("pastTreatments")}
+              />
             </div>
           </div>
         )}
       </div>
 
-      {/* Clinical Examination Card */}
+      {/* Clinical Examination */}
       <div className="clinical-card p-6 border-l-4 border-l-primary">
         <div className="flex items-center gap-2 mb-4">
           <Stethoscope className="w-5 h-5 text-primary" />
@@ -432,61 +417,47 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
         <p className="text-sm text-muted-foreground mb-4">
           Document your direct clinical observations during physical examination
         </p>
-        <div className="space-y-2">
-          <Label htmlFor="examinationFindings">
-            Examination Findings <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
-            {...register("examinationFindings")}
-            placeholder="General appearance, cardiovascular examination, respiratory examination, abdominal examination, neurological examination, musculoskeletal findings, skin examination..."
-            className={`clinical-input ${mode === "pre" ? "min-h-[100px]" : "min-h-[150px]"}`}
-          />
-          {errors.examinationFindings && (
-            <p className="text-sm text-destructive">{errors.examinationFindings.message}</p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Minimum {mode === "pre" ? "20" : "50"} characters
-          </p>
-        </div>
+        <VoiceTextarea
+          label="Examination Findings"
+          required
+          fieldProps={register("examinationFindings")}
+          placeholder="General appearance, cardiovascular examination, respiratory examination, abdominal examination, neurological examination, musculoskeletal findings, skin examination..."
+          minH={mode === "pre" ? "min-h-[100px]" : "min-h-[150px]"}
+          error={errors.examinationFindings?.message}
+          hint={`Minimum ${mode === "pre" ? "20" : "50"} characters`}
+          onVoiceTranscript={voiceHandler("examinationFindings")}
+        />
       </div>
 
-      {/* Symptoms & History Card */}
+      {/* Symptoms & History */}
       <div className="clinical-card p-6">
         <h3 className="section-header">Symptoms & History</h3>
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="symptoms">
-              Symptoms <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              {...register("symptoms")}
-              placeholder="Patient's reported symptoms, onset, duration, severity, aggravating/relieving factors"
-              className="clinical-input min-h-[100px]"
-            />
-            {errors.symptoms && (
-              <p className="text-sm text-destructive">{errors.symptoms.message}</p>
-            )}
-          </div>
+          <VoiceTextarea
+            label="Symptoms"
+            required
+            fieldProps={register("symptoms")}
+            placeholder="Patient's reported symptoms, onset, duration, severity, aggravating/relieving factors"
+            minH="min-h-[100px]"
+            error={errors.symptoms?.message}
+            onVoiceTranscript={voiceHandler("symptoms")}
+          />
 
           {showDetailedFields && (
-            <div className="space-y-2">
-              <Label htmlFor="history">
-                Medical History <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                {...register("history")}
-                placeholder="Past medical history, surgical history, family history, social history"
-                className="clinical-input min-h-[100px]"
-              />
-              {errors.history && (
-                <p className="text-sm text-destructive">{errors.history.message}</p>
-              )}
-            </div>
+            <VoiceTextarea
+              label="Medical History"
+              required
+              fieldProps={register("history")}
+              placeholder="Past medical history, surgical history, family history, social history"
+              minH="min-h-[100px]"
+              error={errors.history?.message}
+              onVoiceTranscript={voiceHandler("history")}
+            />
           )}
         </div>
       </div>
 
-      {/* Research Context Section */}
+      {/* Research Context */}
       {showResearchFields && (
         <Collapsible open={researchOpen} onOpenChange={setResearchOpen}>
           <div className="clinical-card p-6 border-l-4 border-l-accent-foreground">
@@ -503,89 +474,19 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
 
             <CollapsibleContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="familyMedicalHistory">Family Medical History</Label>
-                  <Textarea
-                    {...register("familyMedicalHistory")}
-                    placeholder="Hereditary conditions, family disease patterns..."
-                    className="clinical-input min-h-[100px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="geneticConditions">Genetic Conditions Known</Label>
-                  <Textarea
-                    {...register("geneticConditions")}
-                    placeholder="Known genetic disorders, test results..."
-                    className="clinical-input min-h-[100px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="epidemiologicalExposure">Epidemiological Exposure</Label>
-                  <Textarea
-                    {...register("epidemiologicalExposure")}
-                    placeholder="Disease outbreaks, endemic areas, contacts..."
-                    className="clinical-input min-h-[100px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="travelHistory">Travel History</Label>
-                  <Textarea
-                    {...register("travelHistory")}
-                    placeholder="Recent travel, endemic regions visited..."
-                    className="clinical-input min-h-[100px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="occupationalExposure">Occupational / Environmental Exposure</Label>
-                  <Textarea
-                    {...register("occupationalExposure")}
-                    placeholder="Work hazards, chemical exposure, pollution..."
-                    className="clinical-input min-h-[100px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="immunizationHistory">Immunization History</Label>
-                  <Textarea
-                    {...register("immunizationHistory")}
-                    placeholder="Vaccination records, recent immunizations..."
-                    className="clinical-input min-h-[100px]"
-                  />
-                </div>
+                <VoiceTextarea label="Family Medical History" fieldProps={register("familyMedicalHistory")} placeholder="Hereditary conditions, family disease patterns..." minH="min-h-[100px]" onVoiceTranscript={voiceHandler("familyMedicalHistory")} />
+                <VoiceTextarea label="Genetic Conditions Known" fieldProps={register("geneticConditions")} placeholder="Known genetic disorders, test results..." minH="min-h-[100px]" onVoiceTranscript={voiceHandler("geneticConditions")} />
+                <VoiceTextarea label="Epidemiological Exposure" fieldProps={register("epidemiologicalExposure")} placeholder="Disease outbreaks, endemic areas, contacts..." minH="min-h-[100px]" onVoiceTranscript={voiceHandler("epidemiologicalExposure")} />
+                <VoiceTextarea label="Travel History" fieldProps={register("travelHistory")} placeholder="Recent travel, endemic regions visited..." minH="min-h-[100px]" onVoiceTranscript={voiceHandler("travelHistory")} />
+                <VoiceTextarea label="Occupational / Environmental Exposure" fieldProps={register("occupationalExposure")} placeholder="Work hazards, chemical exposure, pollution..." minH="min-h-[100px]" onVoiceTranscript={voiceHandler("occupationalExposure")} />
+                <VoiceTextarea label="Immunization History" fieldProps={register("immunizationHistory")} placeholder="Vaccination records, recent immunizations..." minH="min-h-[100px]" onVoiceTranscript={voiceHandler("immunizationHistory")} />
               </div>
 
               <div className="space-y-4 pt-4 border-t border-border">
-                <div className="space-y-2">
-                  <Label htmlFor="previousLabResults">Previous Lab Results</Label>
-                  <Textarea
-                    {...register("previousLabResults")}
-                    placeholder="Recent laboratory findings, trends, abnormalities..."
-                    className="clinical-input min-h-[120px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="imagingFindings">Imaging Findings</Label>
-                  <Textarea
-                    {...register("imagingFindings")}
-                    placeholder="X-ray, CT, MRI, ultrasound reports..."
-                    className="clinical-input min-h-[120px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="specialistOpinions">Specialist Opinions</Label>
-                  <Textarea
-                    {...register("specialistOpinions")}
-                    placeholder="Previous specialist consultations, opinions..."
-                    className="clinical-input min-h-[120px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="researchNotes">Free Research Notes</Label>
-                  <Textarea
-                    {...register("researchNotes")}
-                    placeholder="Additional observations, hypotheses, literature references..."
-                    className="clinical-input min-h-[150px]"
-                  />
-                </div>
+                <VoiceTextarea label="Previous Lab Results" fieldProps={register("previousLabResults")} placeholder="Recent laboratory findings, trends, abnormalities..." minH="min-h-[120px]" onVoiceTranscript={voiceHandler("previousLabResults")} />
+                <VoiceTextarea label="Imaging Findings" fieldProps={register("imagingFindings")} placeholder="X-ray, CT, MRI, ultrasound reports..." minH="min-h-[120px]" onVoiceTranscript={voiceHandler("imagingFindings")} />
+                <VoiceTextarea label="Specialist Opinions" fieldProps={register("specialistOpinions")} placeholder="Previous specialist consultations, opinions..." minH="min-h-[120px]" onVoiceTranscript={voiceHandler("specialistOpinions")} />
+                <VoiceTextarea label="Free Research Notes" fieldProps={register("researchNotes")} placeholder="Additional observations, hypotheses, literature references..." minH="min-h-[150px]" onVoiceTranscript={voiceHandler("researchNotes")} />
               </div>
             </CollapsibleContent>
           </div>
