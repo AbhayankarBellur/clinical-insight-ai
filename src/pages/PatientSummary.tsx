@@ -55,7 +55,7 @@ export default function PatientSummary() {
   };
 
   const handleBack = () => {
-    navigate("/");
+    navigate("/build-doctor");
   };
 
   return (
