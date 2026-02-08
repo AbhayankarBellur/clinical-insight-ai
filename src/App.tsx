@@ -5,9 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DiagnosisProvider } from "./context/DiagnosisContext";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+import Dashboard from "./pages/Dashboard";
 import BuildDoctor from "./pages/BuildDoctor";
 import PatientSummary from "./pages/PatientSummary";
 import DiagnosisResultsPage from "./pages/DiagnosisResultsPage";
+import DiagnosisHistory from "./pages/DiagnosisHistory";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { ReactNode } from "react";
@@ -39,9 +41,11 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/" element={<ProtectedRoute><BuildDoctor /></ProtectedRoute>} />
+              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/build-doctor" element={<ProtectedRoute><BuildDoctor /></ProtectedRoute>} />
               <Route path="/patient" element={<ProtectedRoute><PatientSummary /></ProtectedRoute>} />
               <Route path="/results" element={<ProtectedRoute><DiagnosisResultsPage /></ProtectedRoute>} />
+              <Route path="/history" element={<ProtectedRoute><DiagnosisHistory /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

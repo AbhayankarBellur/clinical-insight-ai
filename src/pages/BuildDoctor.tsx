@@ -13,6 +13,10 @@ export default function BuildDoctor() {
     navigate("/patient");
   };
 
+  const handleBack = () => {
+    navigate("/");
+  };
+
   return (
     <AppLayout currentStep={1}>
       <div className="max-w-2xl mx-auto">

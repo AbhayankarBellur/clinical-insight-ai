@@ -14,7 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      saved_diagnoses: {
+        Row: {
+          created_at: string
+          diagnosis_data: Json
+          diagnosis_mode: string
+          doctor_config: Json
+          id: string
+          patient_summary: Json
+          token_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diagnosis_data: Json
+          diagnosis_mode?: string
+          doctor_config: Json
+          id?: string
+          patient_summary: Json
+          token_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diagnosis_data?: Json
+          diagnosis_mode?: string
+          doctor_config?: Json
+          id?: string
+          patient_summary?: Json
+          token_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
