@@ -1,36 +1,35 @@
-import { createLovableAuth } from "@lovable.dev/cloud-auth-js";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 
-const LOVABLE_PREVIEW_ORIGIN = "https://id-preview--b01e7921-16ed-4887-964b-f01a223ce933.lovable.app";
+const LOVABLE_HOSTS = ["lovable.app", "lovableproject.com"];
 
-const isLovablePreview = typeof window !== "undefined" && window.location.origin.includes("lovable.app");
+function isLovableDomain(): boolean {
+  return LOVABLE_HOSTS.some((host) => window.location.hostname.includes(host));
+}
 
-const lovableAuth = createLovableAuth({
-  oauthBrokerUrl: isLovablePreview
-    ? "/~oauth/initiate"
-    : `${LOVABLE_PREVIEW_ORIGIN}/~oauth/initiate`,
-});
-
-type SignInOptions = {
-  redirect_uri?: string;
-  extraParams?: Record<string, string>;
-};
-
-export const auth = {
-  signInWithOAuth: async (provider: "google" | "apple", opts?: SignInOptions) => {
-    const result = await lovableAuth.signInWithOAuth(provider, {
-      redirect_uri: opts?.redirect_uri,
-      extraParams: opts?.extraParams,
+export async function signInWithGoogle() {
+  if (isLovableDomain()) {
+    // On Lovable domains, use the managed auth bridge
+    return lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
     });
+  }
 
-    if (result.redirected) return result;
-    if (result.error) return result;
+  // On custom domains (Vercel, etc.), bypass the auth bridge
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin,
+      skipBrowserRedirect: true,
+    },
+  });
 
-    try {
-      await supabase.auth.setSession(result.tokens);
-    } catch (e) {
-      return { error: e instanceof Error ? e : new Error(String(e)) };
-    }
-    return result;
-  },
-};
+  if (error) return { error };
+
+  if (data?.url) {
+    window.location.href = data.url;
+    return { error: null, redirected: true as const };
+  }
+
+  return { error: new Error("No OAuth URL returned") };
+}

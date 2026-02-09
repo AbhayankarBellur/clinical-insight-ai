@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { auth } from "@/lib/auth";
+import { signInWithGoogle } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,10 +18,8 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     try {
-      const { error } = await auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-      });
-      if (error) throw error;
+      const result = await signInWithGoogle();
+      if (result.error) throw result.error;
     } catch (error: any) {
       toast({
         title: "Authentication Failed",
