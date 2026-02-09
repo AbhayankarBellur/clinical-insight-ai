@@ -63,6 +63,7 @@ export default function Login() {
           <p className="text-xs text-muted-foreground mt-8 leading-relaxed">
             By signing in, you acknowledge this tool is for decision support only and does not replace clinical judgment.
           </p>
+          {/* v1.1 */}
         </div>
       </div>
     </div>
