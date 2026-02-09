@@ -1,35 +1,32 @@
+import { createLovableAuth } from "@lovable.dev/cloud-auth-js";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 
-const LOVABLE_HOSTS = ["lovable.app", "lovableproject.com"];
+const LOVABLE_PREVIEW_ORIGIN =
+  "https://id-preview--b01e7921-16ed-4887-964b-f01a223ce933.lovable.app";
 
-function isLovableDomain(): boolean {
-  return LOVABLE_HOSTS.some((host) => window.location.hostname.includes(host));
-}
+const isLovableDomain =
+  typeof window !== "undefined" &&
+  (window.location.hostname.includes("lovable.app") ||
+    window.location.hostname.includes("lovableproject.com"));
+
+const lovableAuth = createLovableAuth({
+  oauthBrokerUrl: isLovableDomain
+    ? "/~oauth/initiate"
+    : `${LOVABLE_PREVIEW_ORIGIN}/~oauth/initiate`,
+});
 
 export async function signInWithGoogle() {
-  if (isLovableDomain()) {
-    // On Lovable domains, use the managed auth bridge
-    return lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-  }
-
-  // On custom domains (Vercel, etc.), bypass the auth bridge
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: window.location.origin,
-      skipBrowserRedirect: true,
-    },
+  const result = await lovableAuth.signInWithOAuth("google", {
+    redirect_uri: window.location.origin,
   });
 
-  if (error) return { error };
+  if (result.redirected) return { error: null };
+  if (result.error) return { error: result.error };
 
-  if (data?.url) {
-    window.location.href = data.url;
-    return { error: null, redirected: true as const };
+  try {
+    await supabase.auth.setSession(result.tokens);
+  } catch (e) {
+    return { error: e instanceof Error ? e : new Error(String(e)) };
   }
-
-  return { error: new Error("No OAuth URL returned") };
+  return { error: null };
 }
