@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      doctor_profiles: {
+        Row: {
+          created_at: string
+          doctor_config: Json
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_config: Json
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          doctor_config?: Json
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_diagnoses: {
         Row: {
           created_at: string
@@ -52,7 +76,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      purge_old_diagnoses: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

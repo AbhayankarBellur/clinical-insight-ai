@@ -42,9 +42,9 @@ export function DiagnosisResults({
   const ModeIcon = modeLabels[mode].icon;
 
   return (
-    <div className="space-y-6 print-content">
+    <div className="space-y-4 sm:space-y-6 print-content">
       <div className="print-only mb-6">
-        <h1 className="text-xl font-bold mb-2">Clinical Decision Support Report</h1>
+        <h1 className="text-xl font-bold mb-2">Intuition — Clinical Decision Support Report</h1>
         <p className="text-sm text-muted-foreground">
           Generated: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
         </p>
@@ -106,7 +106,6 @@ export function DiagnosisResults({
         </p>
       </div>
 
-      {/* Saved token display */}
       {savedToken && (
         <div className="clinical-card p-4 border-l-4 border-l-primary rounded-xl no-print">
           <div className="flex items-center gap-2">
@@ -119,21 +118,21 @@ export function DiagnosisResults({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3 justify-center pt-4 no-print">
+      <div className="flex flex-wrap gap-2 sm:gap-3 justify-center pt-4 no-print">
         {onSave && !savedToken && (
-          <Button onClick={onSave} disabled={saving} className="rounded-xl">
-            <Save className="w-4 h-4 mr-2" />
+          <Button onClick={onSave} disabled={saving} className="rounded-xl text-xs sm:text-sm">
+            <Save className="w-4 h-4 mr-1 sm:mr-2" />
             {saving ? "Saving..." : "Save Diagnosis"}
           </Button>
         )}
-        <Button onClick={handlePrint} variant="outline" className="rounded-xl">
-          <Printer className="w-4 h-4 mr-2" /> Print Report
+        <Button onClick={handlePrint} variant="outline" className="rounded-xl text-xs sm:text-sm">
+          <Printer className="w-4 h-4 mr-1 sm:mr-2" /> Print Report
         </Button>
-        <Button onClick={onNewPatient} variant="outline" className="rounded-xl">
-          <RefreshCw className="w-4 h-4 mr-2" /> New Patient
+        <Button onClick={onNewPatient} variant="outline" className="rounded-xl text-xs sm:text-sm">
+          <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" /> New Patient
         </Button>
-        <Button onClick={onReconfigure} variant="outline" className="rounded-xl">
-          <Settings className="w-4 h-4 mr-2" /> Reconfigure Doctor
+        <Button onClick={onReconfigure} variant="outline" className="rounded-xl text-xs sm:text-sm">
+          <Settings className="w-4 h-4 mr-1 sm:mr-2" /> Reconfigure
         </Button>
       </div>
     </div>
