@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { lovable } from "@/integrations/lovable/index";
+import { auth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,7 +18,7 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     try {
-      const { error } = await lovable.auth.signInWithOAuth("google", {
+      const { error } = await auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
       });
       if (error) throw error;
