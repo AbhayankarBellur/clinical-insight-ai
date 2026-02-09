@@ -2,10 +2,8 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Activity } from "lucide-react";
 
 export default function Login() {
   const { user, loading } = useAuth();
@@ -20,32 +18,10 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     try {
-      // Detect custom domain (Vercel, etc.)
-      const isCustomDomain =
-        !window.location.hostname.includes("lovable.app") &&
-        !window.location.hostname.includes("lovableproject.com") &&
-        !window.location.hostname.includes("localhost");
-
-      if (isCustomDomain) {
-        // Bypass auth-bridge for custom domains (Vercel, etc.)
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: window.location.origin,
-            skipBrowserRedirect: true,
-          },
-        });
-        if (error) throw error;
-        if (data?.url) {
-          window.location.href = data.url;
-        }
-      } else {
-        // Lovable domains use managed auth bridge
-        const { error } = await lovable.auth.signInWithOAuth("google", {
-          redirect_uri: window.location.origin,
-        });
-        if (error) throw error;
-      }
+      const { error } = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (error) throw error;
     } catch (error: any) {
       toast({
         title: "Authentication Failed",
@@ -68,9 +44,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="clinical-card p-8 rounded-2xl shadow-lg text-center">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Activity className="w-6 h-6 text-primary" />
-            </div>
+            <img src="/favicon.jpeg" alt="Intuition logo" className="w-12 h-12 rounded-xl object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-1">Intuition</h1>
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-6">

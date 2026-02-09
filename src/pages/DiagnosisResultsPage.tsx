@@ -52,17 +52,17 @@ export default function DiagnosisResultsPage() {
   return (
     <AppLayout currentStep={3}>
       <div className="max-w-3xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Test Your Intuition</h1>
-          <p className="text-muted-foreground">AI-generated diagnostic assessment based on clinical data</p>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="p-4 bg-accent/50 rounded-xl border border-border">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">AI Doctor</p>
-              <p className="text-sm font-medium text-foreground">{doctor.designation} ({doctor.degree})</p>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground mb-2">Test Your Intuition</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm">AI-generated diagnostic assessment based on clinical data</p>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-3 sm:p-4 bg-accent/50 rounded-xl border border-border">
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">AI Doctor</p>
+              <p className="text-xs sm:text-sm font-medium text-foreground">{doctor.designation} ({doctor.degree})</p>
             </div>
-            <div className="p-4 bg-accent/50 rounded-xl border border-border">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Patient</p>
-              <p className="text-sm font-medium text-foreground">{patient.age}y {patient.gender} — BP: {patient.bp}, O2: {patient.o2}%</p>
+            <div className="p-3 sm:p-4 bg-accent/50 rounded-xl border border-border">
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Patient</p>
+              <p className="text-xs sm:text-sm font-medium text-foreground">{patient.age}y {patient.gender} — BP: {patient.bp}, O2: {patient.o2}%</p>
             </div>
           </div>
         </div>

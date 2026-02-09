@@ -16,7 +16,6 @@ export default function PatientSummary() {
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<DiagnosisMode>(diagnosisMode);
 
-  // Redirect if no doctor configured
   if (!doctor) {
     navigate("/");
     return null;
@@ -31,13 +30,8 @@ export default function PatientSummary() {
         body: { doctor, patient: data, mode },
       });
 
-      if (error) {
-        throw error;
-      }
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
+      if (error) throw error;
+      if (response.error) throw new Error(response.error);
 
       const parsedResult = parseDiagnosis(response.diagnosis);
       setDiagnosisResult(parsedResult, mode);
@@ -61,22 +55,21 @@ export default function PatientSummary() {
   return (
     <AppLayout currentStep={2}>
       <div className="max-w-3xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-foreground mb-2">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground mb-2">
             Refine Your Intuition
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-xs sm:text-sm">
             Enter comprehensive patient data for diagnostic analysis
           </p>
-          <div className="mt-4 p-4 bg-accent/50 rounded-xl border border-border">
-            <p className="text-sm text-muted-foreground">
+          <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-accent/50 rounded-xl border border-border">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               <span className="font-medium text-foreground">AI Doctor Profile:</span>{" "}
               {doctor.designation} ({doctor.degree}) — {doctor.specialization}
             </p>
           </div>
         </div>
 
-        {/* Mode selector outside the form so form remounts with correct schema */}
         <DiagnosisModeSelector value={mode} onChange={setMode} />
 
         <PatientForm
@@ -90,12 +83,12 @@ export default function PatientSummary() {
 
       {isLoading && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="clinical-card p-8 text-center max-w-md rounded-2xl shadow-lg">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
+          <div className="clinical-card p-6 sm:p-8 text-center max-w-md rounded-2xl shadow-lg mx-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">
               Analyzing Clinical Data
             </h3>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-xs sm:text-sm">
               Processing patient information and generating diagnostic assessment...
             </p>
           </div>
