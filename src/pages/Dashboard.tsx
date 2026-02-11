@@ -92,11 +92,11 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* 7-day purge disclaimer */}
+        {/* 15-day purge disclaimer */}
         <div className="mt-8 p-3 bg-warning/5 border border-warning/20 rounded-xl flex items-start gap-3">
           <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <strong className="text-foreground">Data Retention Policy:</strong> All saved diagnoses are automatically purged after 7 days to ensure patient data privacy. Export or print any reports you wish to retain before expiry.
+            <strong className="text-foreground">Data Retention Policy:</strong> All saved diagnoses are automatically purged after 15 days to ensure patient data privacy. Export or print any reports you wish to retain before expiry.
           </p>
         </div>
       </div>

@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      diagnosis_shares: {
+        Row: {
+          created_at: string
+          diagnosis_id: string
+          id: string
+          shared_by: string
+          shared_with: string
+        }
+        Insert: {
+          created_at?: string
+          diagnosis_id: string
+          id?: string
+          shared_by: string
+          shared_with: string
+        }
+        Update: {
+          created_at?: string
+          diagnosis_id?: string
+          id?: string
+          shared_by?: string
+          shared_with?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnosis_shares_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: false
+            referencedRelation: "saved_diagnoses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_profiles: {
         Row: {
           created_at: string
@@ -40,6 +72,7 @@ export type Database = {
       }
       saved_diagnoses: {
         Row: {
+          approved_items: Json | null
           created_at: string
           diagnosis_data: Json
           diagnosis_mode: string
@@ -50,6 +83,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          approved_items?: Json | null
           created_at?: string
           diagnosis_data: Json
           diagnosis_mode?: string
@@ -60,6 +94,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          approved_items?: Json | null
           created_at?: string
           diagnosis_data?: Json
           diagnosis_mode?: string
@@ -76,6 +111,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_diagnosis_shared_with: {
+        Args: { _diagnosis_id: string; _user_id: string }
+        Returns: boolean
+      }
       purge_old_diagnoses: { Args: never; Returns: undefined }
     }
     Enums: {

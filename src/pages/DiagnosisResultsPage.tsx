@@ -36,9 +36,9 @@ export default function DiagnosisResultsPage() {
     navigate("/build-doctor");
   };
 
-  const handleSave = async () => {
+  const handleSave = async (approvedItems?: Record<string, number[]>) => {
     setSaving(true);
-    const result = await saveDiagnosis(diagnosis, doctor, patient, diagnosisMode);
+    const result = await saveDiagnosis(diagnosis, doctor, patient, diagnosisMode, approvedItems);
     setSaving(false);
 
     if ("error" in result) {
