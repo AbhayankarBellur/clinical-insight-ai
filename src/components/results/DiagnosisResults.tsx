@@ -1,8 +1,10 @@
-import { DiagnosisResult, DoctorConfig, PatientData, DiagnosisState } from "@/types/medical";
+import { DiagnosisResult, DoctorConfig, PatientData, DiagnosisState, SectionKey } from "@/types/medical";
 import { ResultCard } from "./ResultCard";
+import { SelectablePrintContent } from "./SelectablePrintContent";
 import { Button } from "@/components/ui/button";
 import { Printer, RefreshCw, Settings, AlertCircle, Zap, FileText, Microscope, Save, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface DiagnosisResultsProps {
   result: DiagnosisResult;
@@ -11,7 +13,7 @@ interface DiagnosisResultsProps {
   patient?: PatientData | null;
   onNewPatient: () => void;
   onReconfigure: () => void;
-  onSave?: () => void;
+  onSave?: (approvedItems?: Record<string, number[]>) => void;
   saving?: boolean;
   savedToken?: string | null;
 }
@@ -21,6 +23,13 @@ const modeLabels = {
   detailed: { label: "Detailed Diagnosis", icon: FileText, color: "bg-primary/10 text-primary" },
   research: { label: "Diagnostic Research", icon: Microscope, color: "bg-accent text-accent-foreground" },
 };
+
+const sectionKeys: { key: SectionKey; title: string }[] = [
+  { key: "primaryDiagnosis", title: "Primary Diagnosis" },
+  { key: "investigativeTests", title: "Investigative Tests" },
+  { key: "medication", title: "Medication" },
+  { key: "furtherProcedures", title: "Further Procedures" },
+];
 
 export function DiagnosisResults({
   result,
@@ -33,13 +42,45 @@ export function DiagnosisResults({
   saving,
   savedToken,
 }: DiagnosisResultsProps) {
-  const handlePrint = () => window.print();
+  const [printMode, setPrintMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Record<string, Set<number>>>({});
+
+  const handleSelectionChange = (sectionKey: string, index: number, checked: boolean) => {
+    setSelectedItems((prev) => {
+      const next = { ...prev };
+      const set = new Set(prev[sectionKey] || []);
+      if (checked) set.add(index);
+      else set.delete(index);
+      next[sectionKey] = set;
+      return next;
+    });
+  };
+
+  const handlePrint = () => {
+    setPrintMode(true);
+    setTimeout(() => {
+      window.print();
+      setPrintMode(false);
+    }, 100);
+  };
+
+  const handleSave = () => {
+    if (!onSave) return;
+    // Convert Sets to arrays for JSON storage
+    const approvedItems: Record<string, number[]> = {};
+    for (const [key, set] of Object.entries(selectedItems)) {
+      if (set.size > 0) approvedItems[key] = Array.from(set);
+    }
+    onSave(Object.keys(approvedItems).length > 0 ? approvedItems : undefined);
+  };
 
   const hasParsingIssue =
     !result.primaryDiagnosis && !result.investigativeTests && !result.medication && !result.furtherProcedures;
 
   const mode = diagnosisState?.mode || "detailed";
   const ModeIcon = modeLabels[mode].icon;
+
+  const hasSelections = Object.values(selectedItems).some((s) => s.size > 0);
 
   return (
     <div className="space-y-4 sm:space-y-6 print-content">
@@ -93,10 +134,56 @@ export function DiagnosisResults({
         </div>
       )}
 
-      <ResultCard title="Primary Diagnosis" content={diagnosisState?.sections.primaryDiagnosis.output || result.primaryDiagnosis} variant="diagnosis" sectionState={diagnosisState?.sections.primaryDiagnosis} />
-      <ResultCard title="Investigative Tests" content={diagnosisState?.sections.investigativeTests.output || result.investigativeTests} variant="tests" sectionState={diagnosisState?.sections.investigativeTests} />
-      <ResultCard title="Medication" content={diagnosisState?.sections.medication.output || result.medication} variant="medication" sectionState={diagnosisState?.sections.medication} />
-      <ResultCard title="Further Procedures" content={diagnosisState?.sections.furtherProcedures.output || result.furtherProcedures} variant="procedures" sectionState={diagnosisState?.sections.furtherProcedures} />
+      {/* Print selection hint */}
+      {!printMode && (
+        <div className="no-print clinical-card p-3 rounded-xl border-l-4 border-l-primary/40">
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Print Selection:</strong> Use the checkboxes below each section to select items for the printed report. Only checked items will appear in the PDF.
+          </p>
+        </div>
+      )}
+
+      {sectionKeys.map(({ key, title }) => {
+        const content = diagnosisState?.sections[key].output || result[key];
+        const variant = key === "primaryDiagnosis" ? "diagnosis" : key === "investigativeTests" ? "tests" : key === "medication" ? "medication" : "procedures";
+        return (
+          <div key={key}>
+            {printMode ? (
+              // In print mode, show only selected items with clean formatting
+              hasSelections && selectedItems[key]?.size > 0 ? (
+                <div className={cn("result-card border-l-4", variant === "diagnosis" ? "border-l-primary" : variant === "tests" ? "border-l-warning" : variant === "medication" ? "border-l-success" : "border-l-primary")}>
+                  <h3 className="text-lg font-semibold text-foreground mb-3">{title}</h3>
+                  <SelectablePrintContent
+                    content={content}
+                    sectionKey={key}
+                    selectedItems={selectedItems}
+                    onSelectionChange={handleSelectionChange}
+                    printMode={true}
+                  />
+                </div>
+              ) : !hasSelections ? (
+                // If no selections at all, print everything (fallback)
+                <ResultCard title={title} content={content} variant={variant} sectionState={diagnosisState?.sections[key]} />
+              ) : null
+            ) : (
+              <>
+                <ResultCard title={title} content={content} variant={variant} sectionState={diagnosisState?.sections[key]} />
+                {/* Selectable items below each card */}
+                <div className="mt-2 clinical-card p-3 rounded-xl no-print">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Select for Print</p>
+                  <SelectablePrintContent
+                    content={content}
+                    sectionKey={key}
+                    selectedItems={selectedItems}
+                    onSelectionChange={handleSelectionChange}
+                    printMode={false}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
 
       {hasParsingIssue && <ResultCard title="Raw AI Response" content={result.rawResponse} variant="raw" />}
 
@@ -113,6 +200,9 @@ export function DiagnosisResults({
             <div>
               <p className="text-sm font-semibold text-foreground">Diagnosis Saved</p>
               <p className="text-sm text-muted-foreground">Token: <span className="font-mono font-semibold text-primary">{savedToken}</span></p>
+              {hasSelections && (
+                <p className="text-xs text-muted-foreground mt-1">Doctor-approved items have been tagged in the saved record.</p>
+              )}
             </div>
           </div>
         </div>
@@ -120,13 +210,14 @@ export function DiagnosisResults({
 
       <div className="flex flex-wrap gap-2 sm:gap-3 justify-center pt-4 no-print">
         {onSave && !savedToken && (
-          <Button onClick={onSave} disabled={saving} className="rounded-xl text-xs sm:text-sm">
+          <Button onClick={handleSave} disabled={saving} className="rounded-xl text-xs sm:text-sm">
             <Save className="w-4 h-4 mr-1 sm:mr-2" />
             {saving ? "Saving..." : "Save Diagnosis"}
           </Button>
         )}
         <Button onClick={handlePrint} variant="outline" className="rounded-xl text-xs sm:text-sm">
-          <Printer className="w-4 h-4 mr-1 sm:mr-2" /> Print Report
+          <Printer className="w-4 h-4 mr-1 sm:mr-2" />
+          {hasSelections ? `Print Selected` : "Print Report"}
         </Button>
         <Button onClick={onNewPatient} variant="outline" className="rounded-xl text-xs sm:text-sm">
           <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" /> New Patient

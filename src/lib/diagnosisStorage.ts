@@ -31,7 +31,8 @@ export async function saveDiagnosis(
   result: DiagnosisResult,
   doctor: DoctorConfig,
   patient: PatientData,
-  mode: DiagnosisMode
+  mode: DiagnosisMode,
+  approvedItems?: Record<string, number[]>
 ): Promise<{ token_id: string } | { error: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
@@ -60,14 +61,20 @@ export async function saveDiagnosis(
     specialization: doctor.specialization,
   };
 
-  const { error } = await supabase.from("saved_diagnoses").insert({
+  const insertData: any = {
     user_id: user.id,
     token_id,
     doctor_config: doctorConfig,
     patient_summary: patientSummary,
     diagnosis_data: diagnosisData,
     diagnosis_mode: mode,
-  });
+  };
+
+  if (approvedItems) {
+    insertData.approved_items = approvedItems;
+  }
+
+  const { error } = await supabase.from("saved_diagnoses").insert(insertData);
 
   if (error) return { error: error.message };
   return { token_id };
