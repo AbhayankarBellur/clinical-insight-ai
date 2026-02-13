@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -24,18 +24,20 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Create user-context client and validate JWT explicitly
+    // Validate JWT using getClaims
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: caller }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError || !caller) {
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const callerId = claimsData.claims.sub;
 
     const { email } = await req.json();
     if (!email || typeof email !== "string") {
@@ -66,7 +68,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (targetUser.id === caller.id) {
+    if (targetUser.id === callerId) {
       return new Response(JSON.stringify({ error: "Cannot share with yourself" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
