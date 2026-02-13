@@ -11,13 +11,23 @@ interface SelectablePrintContentProps {
 }
 
 function parseLines(content: string): { text: string; original: string }[] {
-  return content
-    .split("\n")
-    .filter((l) => l.trim().length > 0)
-    .map((line) => ({
-      text: line.replace(/^\s*\d+[\.\)]\s*/, "").replace(/^\s*[-•]\s*/, "").replace(/\*\*/g, "").trim(),
-      original: line,
-    }));
+  const rawLines = content.split("\n").filter((l) => l.trim().length > 0);
+  const lines: { text: string; original: string }[] = [];
+  
+  for (const rawLine of rawLines) {
+    // Split if multiple numbered items are concatenated on one line
+    const splitByNumbers = rawLine.split(/(?=\d+\.\s+)/g).filter(s => s.trim());
+    const parts = splitByNumbers.length > 1 ? splitByNumbers : [rawLine];
+    
+    for (const part of parts) {
+      lines.push({
+        text: part.replace(/^\s*\d+[\.\)]\s*/, "").replace(/^\s*[-•]\s*/, "").replace(/\*\*/g, "").trim(),
+        original: part.trim(),
+      });
+    }
+  }
+  
+  return lines;
 }
 
 export function SelectablePrintContent({

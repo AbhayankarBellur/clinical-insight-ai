@@ -44,16 +44,33 @@ const variantColors = {
 
 function parseProbabilities(text: string): ProbabilityItem[] {
   const items: ProbabilityItem[] = [];
-  const lines = text.split("\n").filter(Boolean);
+  
+  // Split by newlines, semicolons, or numbered patterns to handle items on same line
+  const rawLines = text.split("\n").filter(Boolean);
+  const lines: string[] = [];
+  
+  for (const rawLine of rawLines) {
+    // If a single line contains multiple numbered items (e.g., "1. X (30%) 2. Y (40%)"), split them
+    const splitByNumbers = rawLine.split(/(?=\d+\.\s+)/g).filter(s => s.trim());
+    if (splitByNumbers.length > 1) {
+      lines.push(...splitByNumbers);
+    } else {
+      lines.push(rawLine);
+    }
+  }
   
   for (const line of lines) {
     // Match patterns like "Condition (60%)" or "Condition - 60%" or "1. Condition (60%)"
-    const match = line.match(/(?:\d+\.\s*)?(.+?)[\s]*[\(\-–]\s*(\d+(?:\.\d+)?)\s*%\s*\)?/);
+    // Also handle **bold** conditions and various separators
+    const match = line.match(/(?:\d+[\.\)]\s*)?(?:\*\*)?(.+?)(?:\*\*)?\s*[\(\-–:]\s*(\d+(?:\.\d+)?)\s*%\s*\)?/);
     if (match) {
-      items.push({
-        condition: match[1].replace(/\*\*/g, "").trim(),
-        percentage: parseFloat(match[2]),
-      });
+      const condition = match[1].replace(/\*\*/g, "").replace(/[-–]\s*$/, "").trim();
+      if (condition) {
+        items.push({
+          condition,
+          percentage: parseFloat(match[2]),
+        });
+      }
     }
   }
   
@@ -144,7 +161,19 @@ function DiagnosisContent({ content }: { content: string }) {
 }
 
 function StandardContent({ content, variant }: { content: string; variant: string }) {
-  const lines = content.split("\n").filter(Boolean);
+  // Split by newlines, and also break apart lines that have multiple numbered items concatenated
+  const rawLines = content.split("\n").filter(Boolean);
+  const lines: string[] = [];
+  
+  for (const rawLine of rawLines) {
+    // Split if multiple numbered items are on one line (e.g., "1. X 2. Y")
+    const splitByNumbers = rawLine.split(/(?=\d+\.\s+)/g).filter(s => s.trim());
+    if (splitByNumbers.length > 1) {
+      lines.push(...splitByNumbers);
+    } else {
+      lines.push(rawLine);
+    }
+  }
   
   return (
     <div className="space-y-2">

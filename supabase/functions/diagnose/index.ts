@@ -145,21 +145,35 @@ Each section MUST start on its own line with the section header.
 Each section MUST contain exactly two subfields: "Output:" and "Reasoning:" each on their own line.
 Do NOT nest section names inside other sections' content.
 Do NOT repeat content from one section in another.
+CRITICAL FORMATTING RULE: Each distinct item (diagnosis, test, medication, procedure) MUST be on its OWN separate line, numbered sequentially (1. 2. 3. etc). NEVER combine multiple items on a single line.
 
 PRIMARY DIAGNOSIS:
-Output: [Your ranked differential diagnosis with probability percentages]
+Output:
+1. Most Likely Condition (XX%)
+2. Second Most Likely Condition (XX%)
+3. Third Possibility (XX%)
+[List ALL differential diagnoses with probability percentages, each on its own numbered line, most likely first]
 Reasoning: [Clinical reasoning explaining why these diagnoses are considered]
 
 INVESTIGATIVE TESTS:
-Output: [Recommended tests in order of clinical urgency]
+Output:
+1. First test
+2. Second test
+[Each test on its own numbered line, ordered by clinical urgency]
 Reasoning: [Why each test is needed and what it will confirm/rule out]
 
 MEDICATION:
-Output: [Generic Name (Dosage) - Indian Brand Names, with frequency and duration for each]
+Output:
+1. Generic Name (Dosage) - Indian Brand Names - frequency and duration
+2. Next medication on new line
+[Each medication on its own numbered line]
 Reasoning: [Why these medications are chosen, mechanism of action, contraindication checks]
 
 FURTHER PROCEDURES:
-Output: [Next steps, referrals, follow-up schedule]
+Output:
+1. First procedure/referral
+2. Next step on new line
+[Each procedure on its own numbered line]
 Reasoning: [Why these procedures are recommended based on differential diagnosis]`;
 
     const prunedPatient = pruneEmptyFields(patient as unknown as Record<string, unknown>);
@@ -229,21 +243,34 @@ ${patient.history ? `MEDICAL HISTORY:\n${patient.history}` : ""}
 ${researchSection}
 
 IMPORTANT: Respond using EXACTLY the format below. Each section must start on a NEW LINE with the section name. Do NOT include content from one section inside another. Each section has exactly two subfields: Output: and Reasoning:
+CRITICAL: Every distinct item MUST be on its OWN separate line, numbered sequentially. NEVER combine multiple items on one line.
 
 PRIMARY DIAGNOSIS:
-Output: [ranked differential with probabilities, most likely first]
+Output:
+1. Most Likely Condition (XX%)
+2. Next Condition (XX%)
+[each diagnosis on its own numbered line]
 Reasoning: [clinical reasoning]
 
 INVESTIGATIVE TESTS:
-Output: [tests ordered by clinical urgency, most crucial first]
+Output:
+1. First test
+2. Second test
+[each test on its own numbered line]
 Reasoning: [rationale for each test]
 
 MEDICATION:
-Output: [Generic Name (Dose) - Indian Brand Names, for each medication]
+Output:
+1. Generic Name (Dose) - Indian Brand Names - frequency, duration
+2. Next medication
+[each medication on its own numbered line]
 Reasoning: [drug selection rationale and safety checks]
 
 FURTHER PROCEDURES:
-Output: [procedures and follow-up ordered by priority]
+Output:
+1. First procedure
+2. Next procedure
+[each on its own numbered line]
 Reasoning: [procedure rationale]`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
