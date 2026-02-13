@@ -1,1 +1,4 @@
 project_id = "rlwwbdyewjbgvykgzgcm"
+
+[functions.lookup-doctor]
+verify_jwt = false
