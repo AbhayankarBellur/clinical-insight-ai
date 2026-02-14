@@ -1,6 +1,9 @@
 import { DiagnosisResult, DoctorConfig, PatientData, DiagnosisState, SectionKey } from "@/types/medical";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import { ResultCard } from "./ResultCard";
 import { SelectablePrintContent } from "./SelectablePrintContent";
 import { Button } from "@/components/ui/button";
@@ -83,7 +86,24 @@ export function DiagnosisResults({
           yOffset = -(imgHeight - remainingHeight) + 10;
         }
       }
-      pdf.save("diagnosis-report.pdf");
+      // Platform-specific save: Native vs Browser
+      if (Capacitor.isNativePlatform()) {
+        const pdfBase64 = pdf.output("datauristring").split(",")[1];
+        const fileName = `diagnosis-report-${Date.now()}.pdf`;
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: pdfBase64,
+          directory: Directory.Documents,
+        });
+        await Share.share({
+          title: "Diagnosis Report",
+          text: "Intuition Clinical Report",
+          url: savedFile.uri,
+          dialogTitle: "Save Report",
+        });
+      } else {
+        pdf.save("diagnosis-report.pdf");
+      }
     } catch (err) {
       console.error("PDF generation failed, falling back to window.print()", err);
       window.print();
