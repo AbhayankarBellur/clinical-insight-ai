@@ -1,4 +1,6 @@
 import { DiagnosisResult, DoctorConfig, PatientData, DiagnosisState, SectionKey } from "@/types/medical";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { ResultCard } from "./ResultCard";
 import { SelectablePrintContent } from "./SelectablePrintContent";
 import { Button } from "@/components/ui/button";
@@ -56,12 +58,38 @@ export function DiagnosisResults({
     });
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     setPrintMode(true);
-    setTimeout(() => {
+    // Allow React to render the print content
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      const printEl = document.querySelector(".print-content") as HTMLElement;
+      if (!printEl) return;
+      const canvas = await html2canvas(printEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let yOffset = 10;
+      let remainingHeight = imgHeight;
+      // Handle multi-page content
+      while (remainingHeight > 0) {
+        pdf.addImage(imgData, "PNG", 10, yOffset, imgWidth, imgHeight);
+        remainingHeight -= pageHeight - 20;
+        if (remainingHeight > 0) {
+          pdf.addPage();
+          yOffset = -(imgHeight - remainingHeight) + 10;
+        }
+      }
+      pdf.save("diagnosis-report.pdf");
+    } catch (err) {
+      console.error("PDF generation failed, falling back to window.print()", err);
       window.print();
+    } finally {
       setPrintMode(false);
-    }, 100);
+    }
   };
 
   const handleSave = () => {
