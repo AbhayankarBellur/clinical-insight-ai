@@ -1,54 +1,101 @@
-# Fix: Print-to-PDF for Capacitor APK  
-GUARDRAILS:NO CHANGE IN UI FLOWS, DATABASE FUNCTIONALITY, REQUEST/ RESPONSE FORMATTING, OUTPUT + REASONING TAB CONTENT, SELECTION FEATURES, SHARING FEATURES AUTH, AI BEHAVIOUR, TYPES OF REASONING, PATIENT FORM INPUTS
 
-## Problem
+## Feature: Medical Image Upload & AI Analysis (Detailed + Research Modes Only)
 
-`window.print()` does not work inside Capacitor's Android WebView. The print button works in mobile browsers but fails silently in the APK.
+### What's Being Added
+A new collapsible section in the patient form — **"Diagnostic Imaging"** — visible only in `detailed` and `research` modes. It allows the doctor to:
+1. Select the **imaging type** from a dropdown (ECG, Chest X-Ray, CT Scan, MRI, Echocardiogram, Fundoscopy, Spirometry, etc.)
+2. Add a **region/descriptor** free-text field (e.g. "Bilateral basal lung fields", "12-lead resting ECG")
+3. **Upload an image** from device or camera (JPEG/PNG, single image per submission)
+4. On submit, the image is sent to the AI as a **base64 vision message** alongside the full patient data
+5. The AI returns a **fifth output section: IMAGE ANALYSIS** — with its own Output + Reasoning
 
-## Solution
+### What is NOT Changing (Full Guardrails)
+- All existing 4 output sections: PRIMARY DIAGNOSIS, INVESTIGATIVE TESTS, MEDICATION, FURTHER PROCEDURES — unchanged
+- Parse logic for existing sections — untouched
+- Print flow (`window.print()`) — untouched
+- Save/share/history — untouched
+- Auth — untouched
+- Pre-diagnosis mode — no image section appears
+- UI of existing result cards — untouched
+- Doctor form — untouched
 
-Replace `window.print()` with client-side PDF generation using `jspdf` + `html2canvas`. This captures the print content as an image, converts it to a PDF file, and triggers a download. Works identically in both browser and Capacitor WebView.
+---
 
-## What Changes
+### Files Changed
 
-**Only one file is modified:** `src/components/results/DiagnosisResults.tsx`
+**1. `src/types/medical.ts`**
+- Add optional fields to `PatientData`: `imagingType?: string`, `imagingDescriptor?: string`, `imagingImageBase64?: string`
+- Add `"imageAnalysis"` to `SectionKey` union
+- Add `imageAnalysis` + `imageAnalysisReasoning` fields to `DiagnosisResult`
 
-- The `handlePrint` function (lines 59-65) will be updated
-- Instead of calling `window.print()`, it will:
-  1. Set `printMode = true` (same as now)
-  2. Wait for React to render the selected items
-  3. Use `html2canvas` to capture the `.print-content` div
-  4. Use `jspdf` to create a PDF from the canvas
-  5. Save/download the PDF file
-  6. Set `printMode = false` (same as now)
+**2. `src/components/forms/PatientForm.tsx`**
+- Add a new collapsible card **"Diagnostic Imaging (Optional)"** shown only when `showDetailedFields` is true
+- Inside: dropdown for imaging type → free text descriptor → `<input type="file" accept="image/*" capture="environment">` for device/camera
+- State managed locally with `useState` (not react-hook-form, since file inputs can't be zod-validated meaningfully)
+- On form submit, pass the base64 string + type + descriptor through to `onSubmit`
 
-**New dependencies added:**
+**3. `src/pages/PatientSummary.tsx`**
+- When `imagingImageBase64` is present, include it in the `supabase.functions.invoke("diagnose")` body
 
-- `jspdf` -- lightweight PDF generation
-- `html2canvas` -- captures DOM elements as canvas images
+**4. `supabase/functions/diagnose/index.ts`**
+- Accept optional `imagingType`, `imagingDescriptor`, `imagingImageBase64` in request body
+- If image is present: switch AI call to use `google/gemini-2.5-flash` with vision message format (messages array includes `image_url` content part)
+- Append imaging context section to `userPrompt`
+- Extend system prompt + response format to include a 5th section: `IMAGE ANALYSIS:`
+- Max tokens bumped slightly for image-bearing requests
 
-## What Does NOT Change
+**5. `src/lib/parseDiagnosis.ts`**
+- Add parsing logic for the optional `IMAGE ANALYSIS:` section (Output + Reasoning)
+- If section absent (no image uploaded), fields remain empty strings — no regression
 
-- No UI changes -- same buttons, same layout, same checkboxes
-- No changes to selection logic, save flow, auth, storage, sharing, edge functions, or any other component
-- The print content rendering (SelectablePrintContent) stays identical
-- All CSS classes (`print-only`, `no-print`, etc.) remain for browser print fallback compatibility
+**6. `src/context/DiagnosisContext.tsx`**
+- Update `setDiagnosisResult` to map `imageAnalysis` / `imageAnalysisReasoning` into sections
 
-## Technical Details
+**7. `src/components/results/DiagnosisResults.tsx`**
+- Add `imageAnalysis` to `sectionKeys` array **conditionally** — only rendered if `result.imageAnalysis` has content
+- Uses existing `ResultCard` component — no new component needed
+
+---
+
+### Data Flow Diagram
 
 ```text
-handlePrint flow:
-  setPrintMode(true)
-       |
-  setTimeout (allow render)
-       |
-  html2canvas(.print-content)
-       |
-  jsPDF.addImage(canvas)
-       |
-  pdf.save("diagnosis-report.pdf")
-       |
-  setPrintMode(false)
+PatientForm (detailed/research)
+  └── Imaging card: type dropdown + descriptor + file input
+        └── FileReader → base64 string stored in local state
+              └── Passed to onSubmit(patientData) with imaging fields
+
+PatientSummary.tsx
+  └── supabase.functions.invoke("diagnose", { body: { doctor, patient, mode } })
+        └── patient now includes imagingType, imagingDescriptor, imagingImageBase64
+
+diagnose/index.ts (edge function)
+  └── If imagingImageBase64 present:
+        - Build vision message: { role: "user", content: [ {type:"text"}, {type:"image_url"} ] }
+        - Add IMAGE ANALYSIS section to system prompt format spec
+        - gemini-2.5-flash handles vision natively
+  └── Returns: diagnosis string with optional IMAGE ANALYSIS section
+
+parseDiagnosis.ts
+  └── Extracts IMAGE ANALYSIS Output + Reasoning (returns empty if absent)
+
+DiagnosisResult type
+  └── imageAnalysis + imageAnalysisReasoning populated
+
+DiagnosisResults.tsx
+  └── Renders ImageAnalysis ResultCard only when content exists
 ```
 
-The PDF will contain only doctor-approved/selected items (or full report if nothing selected), matching existing print behavior exactly.
+---
+
+### Imaging Type Dropdown Options
+ECG / 12-Lead ECG, Chest X-Ray, CT Scan, MRI, Echocardiogram, Ultrasound, Fundoscopy, PFT/Spirometry, Bone Density (DEXA), Mammogram, Endoscopy, Angiography, Nuclear Scan, Other
+
+---
+
+### Key Technical Constraints
+- **Image size**: Client-side resize to max 800px before base64 encoding to keep payload manageable
+- **Single image** per submission (simplest UX, no breaking complexity)
+- **Gemini 2.5 Flash** already used and supports vision — no model change required
+- No storage bucket needed — image is not persisted, only sent inline to the AI
+- The `imagingImageBase64` field is NOT saved to `saved_diagnoses` table (excluded from `diagnosisStorage.ts` patientSummary snapshot — keeps DB clean)
