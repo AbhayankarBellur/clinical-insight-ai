@@ -8,7 +8,7 @@ interface ProbabilityItem {
 
 interface FormattedContentProps {
   content: string;
-  variant: "diagnosis" | "tests" | "medication" | "procedures" | "raw";
+  variant: "diagnosis" | "tests" | "medication" | "procedures" | "imaging" | "raw";
 }
 
 const variantColors = {
@@ -39,6 +39,14 @@ const variantColors = {
   procedures: {
     highlight: "border-l-primary",
     tagBg: "bg-primary/10 text-primary border-primary/20",
+  },
+  imaging: {
+    highlight: "border-l-accent-foreground/60",
+    tagBg: "bg-accent text-accent-foreground border-accent-foreground/20",
+  },
+  raw: {
+    highlight: "border-l-muted-foreground",
+    tagBg: "bg-muted text-muted-foreground border-border",
   },
 };
 

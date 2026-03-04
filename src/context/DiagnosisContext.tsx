@@ -39,6 +39,7 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
         investigativeTests: createSectionState(result.investigativeTests, result.investigativeTestsReasoning),
         medication: createSectionState(result.medication, result.medicationReasoning),
         furtherProcedures: createSectionState(result.furtherProcedures, result.furtherProceduresReasoning),
+        imageAnalysis: createSectionState(result.imageAnalysis, result.imageAnalysisReasoning),
       },
     });
   };
