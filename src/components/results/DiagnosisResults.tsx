@@ -2,7 +2,7 @@ import { DiagnosisResult, DoctorConfig, PatientData, DiagnosisState, SectionKey 
 import { ResultCard } from "./ResultCard";
 import { SelectablePrintContent } from "./SelectablePrintContent";
 import { Button } from "@/components/ui/button";
-import { Printer, RefreshCw, Settings, AlertCircle, Zap, FileText, Microscope, Save, CheckCircle } from "lucide-react";
+import { Printer, RefreshCw, Settings, AlertCircle, Zap, FileText, Microscope, Save, CheckCircle, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -24,7 +24,7 @@ const modeLabels = {
   research: { label: "Diagnostic Research", icon: Microscope, color: "bg-accent text-accent-foreground" },
 };
 
-const sectionKeys: { key: SectionKey; title: string }[] = [
+const baseSectionKeys: { key: SectionKey; title: string }[] = [
   { key: "primaryDiagnosis", title: "Primary Diagnosis" },
   { key: "investigativeTests", title: "Investigative Tests" },
   { key: "medication", title: "Medication" },
@@ -81,6 +81,12 @@ export function DiagnosisResults({
   const ModeIcon = modeLabels[mode].icon;
 
   const hasSelections = Object.values(selectedItems).some((s) => s.size > 0);
+
+  // Build section list — append imageAnalysis conditionally only when it has content
+  const sectionKeys = [
+    ...baseSectionKeys,
+    ...(result.imageAnalysis ? [{ key: "imageAnalysis" as SectionKey, title: "Image Analysis" }] : []),
+  ];
 
   return (
     <div className="space-y-4 sm:space-y-6 print-content">
@@ -144,8 +150,8 @@ export function DiagnosisResults({
       )}
 
       {sectionKeys.map(({ key, title }) => {
-        const content = diagnosisState?.sections[key].output || result[key];
-        const variant = key === "primaryDiagnosis" ? "diagnosis" : key === "investigativeTests" ? "tests" : key === "medication" ? "medication" : "procedures";
+        const content = diagnosisState?.sections[key]?.output || (result as unknown as Record<string, string>)[key] || "";
+        const variant = key === "primaryDiagnosis" ? "diagnosis" : key === "investigativeTests" ? "tests" : key === "medication" ? "medication" : key === "imageAnalysis" ? "imaging" : "procedures";
         return (
           <div key={key}>
             {printMode ? (

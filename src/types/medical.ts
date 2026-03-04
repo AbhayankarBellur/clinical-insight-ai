@@ -42,9 +42,13 @@ export interface PatientData {
   imagingFindings?: string;
   specialistOpinions?: string;
   researchNotes?: string;
+  // Diagnostic Imaging Upload (detailed + research modes only — NOT persisted to DB)
+  imagingType?: string;
+  imagingDescriptor?: string;
+  imagingImageBase64?: string;
 }
 
-export type SectionKey = "primaryDiagnosis" | "investigativeTests" | "medication" | "furtherProcedures";
+export type SectionKey = "primaryDiagnosis" | "investigativeTests" | "medication" | "furtherProcedures" | "imageAnalysis";
 
 export interface SectionState {
   output: string;
@@ -60,6 +64,8 @@ export interface DiagnosisResult {
   medicationReasoning: string;
   furtherProcedures: string;
   furtherProceduresReasoning: string;
+  imageAnalysis: string;
+  imageAnalysisReasoning: string;
   rawResponse: string;
 }
 

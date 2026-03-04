@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Check, Activity, FlaskConical, Pill, ClipboardList, FileText, Brain } from "lucide-react";
+import { Copy, Check, Activity, FlaskConical, Pill, ClipboardList, FileText, Brain, ImageIcon } from "lucide-react";
 import { SectionState } from "@/types/medical";
 import { FormattedContent } from "./FormattedContent";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 interface ResultCardProps {
   title: string;
   content: string;
-  variant: "diagnosis" | "tests" | "medication" | "procedures" | "raw";
+  variant: "diagnosis" | "tests" | "medication" | "procedures" | "imaging" | "raw";
   sectionState?: SectionState;
 }
 
@@ -41,6 +41,13 @@ const variantConfig = {
     accentClass: "border-l-primary",
     iconBg: "bg-primary/10",
     iconColor: "text-primary",
+  },
+  imaging: {
+    icon: ImageIcon,
+    emptyText: "Image analysis not provided by AI",
+    accentClass: "border-l-accent-foreground/60",
+    iconBg: "bg-accent",
+    iconColor: "text-accent-foreground",
   },
   raw: {
     icon: FileText,

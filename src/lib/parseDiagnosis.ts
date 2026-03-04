@@ -14,6 +14,8 @@ export function parseDiagnosis(response: string): DiagnosisResult {
     medicationReasoning: "",
     furtherProcedures: "",
     furtherProceduresReasoning: "",
+    imageAnalysis: "",
+    imageAnalysisReasoning: "",
     rawResponse: response,
   };
 
@@ -27,7 +29,8 @@ export function parseDiagnosis(response: string): DiagnosisResult {
     primaryDiagnosis: extractSection(normalized, "PRIMARY DIAGNOSIS", ["INVESTIGATIVE TESTS"]),
     investigativeTests: extractSection(normalized, "INVESTIGATIVE TESTS", ["MEDICATION"]),
     medication: extractSection(normalized, "MEDICATION", ["FURTHER PROCEDURES"]),
-    furtherProcedures: extractSection(normalized, "FURTHER PROCEDURES", []),
+    furtherProcedures: extractSection(normalized, "FURTHER PROCEDURES", ["IMAGE ANALYSIS"]),
+    imageAnalysis: extractSection(normalized, "IMAGE ANALYSIS", []),
   };
 
   // Parse output and reasoning from each section
@@ -46,6 +49,9 @@ export function parseDiagnosis(response: string): DiagnosisResult {
       } else if (key === "furtherProcedures") {
         result.furtherProcedures = output;
         result.furtherProceduresReasoning = reasoning;
+      } else if (key === "imageAnalysis") {
+        result.imageAnalysis = output;
+        result.imageAnalysisReasoning = reasoning;
       }
     }
   }

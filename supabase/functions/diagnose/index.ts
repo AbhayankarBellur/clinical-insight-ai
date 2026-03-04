@@ -40,6 +40,10 @@ interface PatientData {
   imagingFindings?: string;
   specialistOpinions?: string;
   researchNotes?: string;
+  // Imaging upload fields
+  imagingType?: string;
+  imagingDescriptor?: string;
+  imagingImageBase64?: string;
 }
 
 type DiagnosisMode = "pre" | "detailed" | "research";
@@ -101,7 +105,16 @@ serve(async (req) => {
       throw new Error("Lovable API key not configured");
     }
 
+    const hasImage = !!(patient.imagingImageBase64 && patient.imagingType);
     const modeModifier = getModeModifier(mode);
+
+    // IMAGE ANALYSIS section appended to system prompt only when image is present
+    const imageAnalysisSection = hasImage ? `
+
+IMAGE ANALYSIS:
+Output:
+[Detailed structured interpretation of the uploaded ${patient.imagingType} image. Describe key findings, abnormalities, measurements where visible, and their clinical significance. Use numbered lines for each distinct finding.]
+Reasoning: [Clinical correlation between the image findings and the patient presentation. Explain how the imaging findings support, modify, or change the diagnostic assessment.]` : "";
 
     const systemPrompt = `You are a ${doctor.designation} with ${doctor.degree} specializing in ${doctor.specialization}. 
 
@@ -139,6 +152,7 @@ Instructions:
 - For each section, provide both the clinical Output AND the Reasoning behind it
 - Order items by clinical priority/probability (most important first)
 - For INVESTIGATIVE TESTS: Order by clinical urgency, most crucial tests first
+${hasImage ? "- An uploaded diagnostic image is included. Analyze it thoroughly in the IMAGE ANALYSIS section." : ""}
 
 RESPONSE FORMAT (STRICTLY FOLLOW THIS EXACT STRUCTURE):
 Each section MUST start on its own line with the section header.
@@ -174,7 +188,7 @@ Output:
 1. First procedure/referral
 2. Next step on new line
 [Each procedure on its own numbered line]
-Reasoning: [Why these procedures are recommended based on differential diagnosis]`;
+Reasoning: [Why these procedures are recommended based on differential diagnosis]${imageAnalysisSection}`;
 
     const prunedPatient = pruneEmptyFields(patient as unknown as Record<string, unknown>);
 
@@ -214,7 +228,11 @@ Reasoning: [Why these procedures are recommended based on differential diagnosis
       }
     }
 
-    const userPrompt = `Analyze the following patient:
+    const imagingContext = hasImage ? `\nDIAGNOSTIC IMAGING SUBMITTED:
+Type: ${patient.imagingType}${patient.imagingDescriptor ? `\nRegion/Descriptor: ${patient.imagingDescriptor}` : ""}
+[Image attached — perform detailed visual analysis in the IMAGE ANALYSIS section]` : "";
+
+    const textPrompt = `Analyze the following patient:
 
 DEMOGRAPHICS:
 Age: ${patient.age}, Gender: ${patient.gender}${patient.nationality ? `, Nationality: ${patient.nationality}` : ""}
@@ -241,6 +259,7 @@ ${patient.symptoms}
 
 ${patient.history ? `MEDICAL HISTORY:\n${patient.history}` : ""}
 ${researchSection}
+${imagingContext}
 
 IMPORTANT: Respond using EXACTLY the format below. Each section must start on a NEW LINE with the section name. Do NOT include content from one section inside another. Each section has exactly two subfields: Output: and Reasoning:
 CRITICAL: Every distinct item MUST be on its OWN separate line, numbered sequentially. NEVER combine multiple items on one line.
@@ -271,7 +290,43 @@ Output:
 1. First procedure
 2. Next procedure
 [each on its own numbered line]
-Reasoning: [procedure rationale]`;
+Reasoning: [procedure rationale]${hasImage ? `
+
+IMAGE ANALYSIS:
+Output:
+1. First finding
+2. Second finding
+[each finding on its own numbered line]
+Reasoning: [clinical correlation of imaging findings]` : ""}`;
+
+    // Build messages array — vision message when image is present
+    let messages: unknown[];
+    if (hasImage) {
+      messages = [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: textPrompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${patient.imagingImageBase64}`,
+              },
+            },
+          ],
+        },
+      ];
+    } else {
+      messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: textPrompt },
+      ];
+    }
+
+    const maxTokens = hasImage
+      ? (mode === "research" ? 6000 : 5000)
+      : (mode === "research" ? 5000 : mode === "pre" ? 2000 : 4000);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -281,12 +336,9 @@ Reasoning: [procedure rationale]`;
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+        messages,
         temperature: 0.3,
-        max_tokens: mode === "research" ? 5000 : mode === "pre" ? 2000 : 4000,
+        max_tokens: maxTokens,
       }),
     });
 

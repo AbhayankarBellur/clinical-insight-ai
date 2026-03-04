@@ -14,8 +14,25 @@ import {
 } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PatientData, DiagnosisMode } from "@/types/medical";
-import { ArrowLeft, Stethoscope, AlertTriangle, Pill, Activity, ChevronDown, Microscope } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Stethoscope, AlertTriangle, Pill, Activity, ChevronDown, Microscope, ImageIcon, Camera, X } from "lucide-react";
+import { useState, useRef } from "react";
+
+const IMAGING_TYPES = [
+  "ECG / 12-Lead ECG",
+  "Chest X-Ray",
+  "CT Scan",
+  "MRI",
+  "Echocardiogram",
+  "Ultrasound",
+  "Fundoscopy",
+  "PFT / Spirometry",
+  "Bone Density (DEXA)",
+  "Mammogram",
+  "Endoscopy",
+  "Angiography",
+  "Nuclear Scan",
+  "Other",
+];
 
 // Dynamic schema based on mode
 const createSchema = (mode: DiagnosisMode) => {
@@ -81,6 +98,12 @@ interface PatientFormProps {
 export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detailed" }: PatientFormProps) {
   const mode = initialMode;
   const [researchOpen, setResearchOpen] = useState(false);
+  const [imagingOpen, setImagingOpen] = useState(false);
+  const [imagingType, setImagingType] = useState("");
+  const [imagingDescriptor, setImagingDescriptor] = useState("");
+  const [imagingImageBase64, setImagingImageBase64] = useState<string | undefined>(undefined);
+  const [imagingFileName, setImagingFileName] = useState<string | undefined>(undefined);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const schema = createSchema(mode);
   
@@ -159,7 +182,44 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
       imagingFindings: data.imagingFindings || "",
       specialistOpinions: data.specialistOpinions || "",
       researchNotes: data.researchNotes || "",
+      // Imaging upload fields (not persisted to DB)
+      imagingType: imagingType || undefined,
+      imagingDescriptor: imagingDescriptor || undefined,
+      imagingImageBase64: imagingImageBase64 || undefined,
     }, mode);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImagingFileName(file.name);
+    // Resize to max 800px and convert to base64
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        const base64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+        setImagingImageBase64(base64);
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearImage = () => {
+    setImagingImageBase64(undefined);
+    setImagingFileName(undefined);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const showDetailedFields = mode !== "pre";
@@ -390,6 +450,94 @@ export function PatientForm({ onSubmit, onBack, isLoading, initialMode = "detail
                   </div>
                 ))}
               </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      )}
+
+      {/* Diagnostic Imaging — visible in detailed + research modes only */}
+      {showDetailedFields && (
+        <Collapsible open={imagingOpen} onOpenChange={setImagingOpen}>
+          <div className="clinical-card p-6 border-l-4 border-l-muted-foreground/40">
+            <CollapsibleTrigger className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                <h3 className="section-header mb-0">Diagnostic Imaging <span className="text-xs font-normal text-muted-foreground ml-1">(Optional)</span></h3>
+                {imagingImageBase64 && (
+                  <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold uppercase tracking-wide">
+                    <Camera className="w-3 h-3" /> Image attached
+                  </span>
+                )}
+              </div>
+              <ChevronDown className={`w-5 h-5 transition-transform text-muted-foreground ${imagingOpen ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <p className="text-sm text-muted-foreground mt-2 mb-4">
+              Upload a diagnostic image (ECG, X-Ray, MRI, etc.) for AI-assisted interpretation alongside the patient data.
+            </p>
+            <CollapsibleContent className="space-y-4">
+              {/* Imaging type dropdown */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Imaging Type</Label>
+                  <Select value={imagingType} onValueChange={setImagingType}>
+                    <SelectTrigger className="clinical-input">
+                      <SelectValue placeholder="Select imaging modality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {IMAGING_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Region / Descriptor</Label>
+                  <Input
+                    value={imagingDescriptor}
+                    onChange={(e) => setImagingDescriptor(e.target.value)}
+                    placeholder="e.g. Bilateral basal lung fields, 12-lead resting ECG"
+                    className="clinical-input"
+                  />
+                </div>
+              </div>
+
+              {/* Image upload */}
+              <div className="space-y-2">
+                <Label>Image Upload</Label>
+                {!imagingImageBase64 ? (
+                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors">
+                    <div className="flex flex-col items-center gap-1">
+                      <Camera className="w-6 h-6 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Click to upload or use camera</p>
+                      <p className="text-xs text-muted-foreground">JPEG / PNG — auto-resized to 800px</p>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-accent/30">
+                    <Camera className="w-5 h-5 text-primary flex-shrink-0" />
+                    <p className="text-sm text-foreground flex-1 truncate">{imagingFileName}</p>
+                    <button
+                      type="button"
+                      onClick={clearImage}
+                      className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                      title="Remove image"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The image will be analyzed by the AI alongside all patient data. It will not be stored or saved.
+              </p>
             </CollapsibleContent>
           </div>
         </Collapsible>
