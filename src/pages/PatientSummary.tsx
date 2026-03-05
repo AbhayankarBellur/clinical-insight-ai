@@ -8,13 +8,17 @@ import { PatientData, DiagnosisMode } from "@/types/medical";
 import { parseDiagnosis } from "@/lib/parseDiagnosis";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useDailyRequestUsage } from "@/hooks/useDailyRequestUsage";
 
 export default function PatientSummary() {
   const navigate = useNavigate();
   const { doctor, setPatient, setDiagnosisResult, diagnosisMode } = useDiagnosis();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<DiagnosisMode>(diagnosisMode);
+  const { refetch: refetchUsage } = useDailyRequestUsage();
 
   if (!doctor) {
     navigate("/");
@@ -26,6 +30,25 @@ export default function PatientSummary() {
     setPatient(data);
 
     try {
+      // Atomically check + increment rate limit before calling AI
+      if (user) {
+        const { data: limitResult, error: limitError } = await supabase.rpc(
+          "check_and_increment_daily_request",
+          { _user_id: user.id }
+        );
+        if (limitError) throw limitError;
+        const limit = limitResult as { allowed: boolean; remaining: number };
+        if (!limit.allowed) {
+          toast({
+            title: "Daily Limit Reached",
+            description: "You have used all 5 diagnoses for today. Your quota resets at 12:00 AM IST.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const { data: response, error } = await supabase.functions.invoke("diagnose", {
         body: { doctor, patient: data, mode },
       });
@@ -35,6 +58,7 @@ export default function PatientSummary() {
 
       const parsedResult = parseDiagnosis(response.diagnosis);
       setDiagnosisResult(parsedResult, mode);
+      refetchUsage(); // Refresh dashboard counter
       navigate("/results");
     } catch (error) {
       console.error("Diagnosis error:", error);

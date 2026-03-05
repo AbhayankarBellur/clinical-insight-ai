@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_request_counts: {
+        Row: {
+          created_at: string
+          date_ist: string
+          id: string
+          request_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_ist: string
+          id?: string
+          request_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_ist?: string
+          id?: string
+          request_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       diagnosis_shares: {
         Row: {
           created_at: string
@@ -111,6 +138,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_and_increment_daily_request: {
+        Args: { _daily_limit?: number; _user_id: string }
+        Returns: Json
+      }
+      get_daily_request_usage: { Args: { _user_id: string }; Returns: Json }
+      get_ist_date: { Args: never; Returns: string }
       is_diagnosis_shared_with: {
         Args: { _diagnosis_id: string; _user_id: string }
         Returns: boolean
