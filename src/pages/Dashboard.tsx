@@ -3,15 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useDiagnosis } from "@/context/DiagnosisContext";
 import { useDoctorProfile } from "@/hooks/useDoctorProfile";
-import { Button } from "@/components/ui/button";
 import { PlusCircle, History, ArrowRight, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDailyRequestUsage } from "@/hooks/useDailyRequestUsage";
+import { DailyUsageBar } from "@/components/layout/DailyUsageBar";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { doctor, setDoctor } = useDiagnosis();
   const { user } = useAuth();
   const { savedProfile, loading: profileLoading } = useDoctorProfile();
+  const { usage, loading: usageLoading } = useDailyRequestUsage();
 
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "Doctor";
 
@@ -23,14 +25,16 @@ export default function Dashboard() {
   }, [savedProfile, doctor, setDoctor]);
 
   const handleNewDiagnosis = () => {
+    if (usage && usage.remaining === 0) return; // blocked by rate limit
     if (doctor || savedProfile) {
-      // Profile exists — skip Build Doctor, go straight to patient form
       if (!doctor && savedProfile) setDoctor(savedProfile);
       navigate("/patient");
     } else {
       navigate("/build-doctor");
     }
   };
+
+  const exhausted = usage?.remaining === 0;
 
   return (
     <AppLayout currentStep={1}>
@@ -43,6 +47,9 @@ export default function Dashboard() {
             Choose your workflow to begin
           </p>
         </div>
+
+        {/* Daily usage bar */}
+        {usage && <DailyUsageBar usage={usage} />}
 
         {/* Active config indicator */}
         {(doctor || savedProfile) && (
@@ -57,19 +64,28 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <button
             onClick={handleNewDiagnosis}
-            className="clinical-card p-6 sm:p-8 text-left hover:shadow-lg transition-all duration-200 hover:border-primary/30 group cursor-pointer"
+            disabled={exhausted}
+            className={`clinical-card p-6 sm:p-8 text-left transition-all duration-200 group ${
+              exhausted
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:shadow-lg hover:border-primary/30 cursor-pointer"
+            }`}
           >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
-              <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center mb-3 sm:mb-4 transition-colors ${exhausted ? "bg-muted" : "bg-primary/10 group-hover:bg-primary/20"}`}>
+              <PlusCircle className={`w-5 h-5 sm:w-6 sm:h-6 ${exhausted ? "text-muted-foreground" : "text-primary"}`} />
             </div>
             <h2 className="text-base sm:text-lg font-semibold text-foreground mb-2">
               Start New Diagnosis
             </h2>
             <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-              {doctor || savedProfile ? "Enter patient data and generate assessment" : "Configure AI profile, enter patient data, and diagnose"}
+              {exhausted
+                ? "Daily limit reached. Resets at 12:00 AM IST."
+                : doctor || savedProfile
+                ? "Enter patient data and generate assessment"
+                : "Configure AI profile, enter patient data, and diagnose"}
             </p>
-            <span className="inline-flex items-center text-sm font-medium text-primary">
-              Begin <ArrowRight className="w-4 h-4 ml-1" />
+            <span className={`inline-flex items-center text-sm font-medium ${exhausted ? "text-muted-foreground" : "text-primary"}`}>
+              {exhausted ? "Unavailable today" : "Begin"} {!exhausted && <ArrowRight className="w-4 h-4 ml-1" />}
             </span>
           </button>
 
