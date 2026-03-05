@@ -44,6 +44,14 @@ export function DiagnosisResults({
 }: DiagnosisResultsProps) {
   const [printMode, setPrintMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Record<string, Set<number>>>({});
+  const [editedItems, setEditedItems] = useState<Record<string, Record<number, string>>>({});
+
+  const handleEditItem = (sectionKey: string, index: number, value: string) => {
+    setEditedItems((prev) => ({
+      ...prev,
+      [sectionKey]: { ...(prev[sectionKey] || {}), [index]: value },
+    }));
+  };
 
   const handleSelectionChange = (sectionKey: string, index: number, checked: boolean) => {
     setSelectedItems((prev) => {
@@ -164,6 +172,7 @@ export function DiagnosisResults({
                     sectionKey={key}
                     selectedItems={selectedItems}
                     onSelectionChange={handleSelectionChange}
+                    editedItems={editedItems}
                     printMode={true}
                   />
                 </div>
@@ -182,6 +191,8 @@ export function DiagnosisResults({
                     sectionKey={key}
                     selectedItems={selectedItems}
                     onSelectionChange={handleSelectionChange}
+                    editedItems={editedItems}
+                    onEditItem={handleEditItem}
                     printMode={false}
                   />
                 </div>
